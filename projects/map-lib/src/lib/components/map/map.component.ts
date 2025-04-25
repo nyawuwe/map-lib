@@ -2,53 +2,58 @@ import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild } from '@ang
 import { MapService } from '../../services/map.service';
 import { MapLibOptions } from '../../models/map-options.model';
 import * as L from 'leaflet';
+import { MapControlsComponent } from '../map-controls/map-controls.component';
+import { CommonModule } from '@angular/common';
 
 @Component({
-    selector: 'lib-map',
-    template: `
+  selector: 'lib-map',
+  template: `
     <div class="map-container">
       <div #mapContainer class="map-element"></div>
+      <lib-map-controls *ngIf="map" [map]="map"></lib-map-controls>
     </div>
   `,
-    styles: [`
+  styles: [`
     .map-container {
       width: 100%;
       height: 100%;
       display: block;
       box-sizing: border-box;
+      position: relative;
     }
     .map-element {
       width: 100%;
       height: 100%;
     }
   `],
-    standalone: true
+  standalone: true,
+  imports: [CommonModule, MapControlsComponent]
 })
 export class MapComponent implements OnInit, OnDestroy {
-    @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
+  @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
 
-    @Input() options: MapLibOptions = {};
+  @Input() options: MapLibOptions = {};
 
-    map: L.Map | null = null;
+  map: L.Map | null = null;
 
-    constructor(private mapService: MapService) { }
+  constructor(private mapService: MapService) { }
 
-    ngOnInit(): void {
-        this.initMap();
+  ngOnInit(): void {
+    this.initMap();
+  }
+
+  ngOnDestroy(): void {
+    if (this.map) {
+      this.map.remove();
+    }
+  }
+
+  private initMap(): void {
+    if (!this.mapContainer) {
+      console.error('Élément de carte non trouvé');
+      return;
     }
 
-    ngOnDestroy(): void {
-        if (this.map) {
-            this.map.remove();
-        }
-    }
-
-    private initMap(): void {
-        if (!this.mapContainer) {
-            console.error('Élément de carte non trouvé');
-            return;
-        }
-
-        this.map = this.mapService.initMap(this.mapContainer.nativeElement, this.options);
-    }
+    this.map = this.mapService.initMap(this.mapContainer.nativeElement, this.options);
+  }
 }

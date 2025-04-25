@@ -1,0 +1,17 @@
+<div class="map-controls-container">
+    <div class="map-controls-group">
+        <button class="map-control-button zoom-in-button" (click)="zoomIn()" aria-label="Zoom avant" title="Zoom avant">
+            <i class="fas fa-plus"></i>
+        </button>
+
+        <button class="map-control-button zoom-out-button" (click)="zoomOut()" aria-label="Zoom arrière"
+            title="Zoom arrière">
+            <i class="fas fa-minus"></i>
+        </button>
+
+        <button class="map-control-button location-button" [class.active]="isLocating" (click)="locateUser()"
+            aria-label="Ma position" title="Ma position">
+            <i class="fas fa-crosshairs"></i>
+        </button>
+    </div>
+</div>

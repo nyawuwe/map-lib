@@ -31,6 +31,7 @@ export class MapService {
       zoom: mergedOptions.zoom,
       minZoom: mergedOptions.minZoom,
       maxZoom: mergedOptions.maxZoom,
+      zoomControl: false,
       ...mergedOptions.options
     });
 
