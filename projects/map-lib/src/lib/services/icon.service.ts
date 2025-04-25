@@ -1,5 +1,7 @@
 import { Injectable } from '@angular/core';
 import * as L from 'leaflet';
+import { PopupInfo } from '../models/popup-info.model';
+import { PopupService } from './popup.service';
 
 export interface IconOptions {
   iconClass: string;
@@ -16,7 +18,7 @@ export interface IconOptions {
 })
 export class IconService {
 
-  constructor() { }
+  constructor(private popupService: PopupService) { }
 
   /**
    * Crée une icône Leaflet basée sur une icône Font Awesome
@@ -48,14 +50,28 @@ export class IconService {
   }
 
   /**
-   * Crée un marqueur avec une icône Font Awesome
+   * Crée un marqueur avec une icône Font Awesome et un popup personnalisé
    */
-  createMarkerWithIcon(latLng: L.LatLngExpression, options: IconOptions, popupContent?: string): L.Marker {
-    const icon = this.createFontAwesomeIcon(options);
+  createMarkerWithIcon(
+    latLng: L.LatLngExpression,
+    iconOptions: IconOptions,
+    popupInfo?: PopupInfo | string
+  ): L.Marker {
+    const icon = this.createFontAwesomeIcon(iconOptions);
     const marker = L.marker(latLng, { icon });
 
-    if (popupContent) {
-      marker.bindPopup(popupContent);
+    if (popupInfo) {
+      if (typeof popupInfo === 'string') {
+        // Convertir le texte simple en objet PopupInfo
+        const popupInfoObj: PopupInfo = {
+          title: iconOptions.iconClass.split(' ').pop() || 'Location',
+          description: popupInfo
+        };
+        this.popupService.bindPopupToMarker(marker, popupInfoObj);
+      } else {
+        // Utiliser l'objet PopupInfo directement
+        this.popupService.bindPopupToMarker(marker, popupInfo);
+      }
     }
 
     return marker;

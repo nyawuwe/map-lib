@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MapLibModule, MapService, MapLibOptions } from 'map-lib';
-import { IconService } from 'map-lib';
+import { IconService, PopupInfo } from 'map-lib';
 import * as L from 'leaflet';
 
 @Component({
@@ -10,7 +10,7 @@ import * as L from 'leaflet';
   imports: [CommonModule, MapLibModule],
   template: `
     <div class="demo-container">
-      <h2>Carte avec marqueurs Font Awesome</h2>
+      <h2>Carte avec marqueurs Font Awesome et popups personnalisés</h2>
       <div class="map-container">
         <lib-map [options]="mapOptions"></lib-map>
         <div class="controls">
@@ -27,6 +27,7 @@ import * as L from 'leaflet';
       color: #333;
       margin-bottom: 1rem;
     }
+
     .map-container {
       height: 500px;
       position: relative;
@@ -63,6 +64,43 @@ export class MapDemoComponent implements OnInit {
 
   addCustomLayers(): void {
     console.log('addCustomLayers');
+
+    // Popup info pour Paris
+    const parisInfo: PopupInfo = {
+      title: 'Paris',
+      description: 'La ville lumière, capitale de la France.',
+      details: {
+        'Population': '2,2 millions',
+        'Altitude': '35m',
+        'Superficie': '105,4 km²',
+        'Fondation': '52 av. J.-C.'
+      }
+    };
+
+    // Popup info pour Marseille
+    const marseilleInfo: PopupInfo = {
+      title: 'Marseille',
+      description: 'Ville portuaire du sud de la France.',
+      details: {
+        'Population': '870 000',
+        'Altitude': '0-640m',
+        'Superficie': '240,6 km²',
+        'Fondation': '600 av. J.-C.'
+      }
+    };
+
+    // Popup info pour Lyon
+    const lyonInfo: PopupInfo = {
+      title: 'Lyon',
+      description: 'Capitale gastronomique de la France.',
+      details: {
+        'Population': '516 000',
+        'Altitude': '162-305m',
+        'Superficie': '47,87 km²',
+        'Fondation': '43 av. J.-C.'
+      }
+    };
+
     const parisMarker = this.iconService.createMarkerWithIcon(
       [48.864716, 2.349014],
       {
@@ -70,7 +108,7 @@ export class MapDemoComponent implements OnInit {
         markerColor: '#e74c3c',
         iconColor: 'red'
       },
-      'Paris - La ville lumière'
+      parisInfo
     );
 
     const marseilleMarker = this.iconService.createMarkerWithIcon(
@@ -80,7 +118,7 @@ export class MapDemoComponent implements OnInit {
         markerColor: '#3498db',
         iconColor: 'red'
       },
-      'Marseille - La cité phocéenne'
+      marseilleInfo
     );
 
     const lyonMarker = this.iconService.createMarkerWithIcon(
@@ -90,7 +128,7 @@ export class MapDemoComponent implements OnInit {
         markerColor: '#2ecc71',
         iconColor: 'red'
       },
-      'Lyon - Capitale de la gastronomie'
+      lyonInfo
     );
 
     const markersLayer = L.layerGroup([parisMarker, marseilleMarker, lyonMarker]);

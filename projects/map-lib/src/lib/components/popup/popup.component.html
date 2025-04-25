@@ -1,0 +1,23 @@
+<div class="map-popup-card">
+    <div class="map-popup-header">
+        <h3 class="map-popup-title">{{ popupInfo.title }}</h3>
+    </div>
+
+    <div class="map-popup-body">
+        <div class="map-popup-image-container" *ngIf="popupInfo.imageSrc || defaultImageUrl">
+            <img [src]="popupInfo.imageSrc || defaultImageUrl" [alt]="popupInfo.imageAlt || 'Location'"
+                class="map-popup-image">
+        </div>
+
+        <div class="map-popup-content">
+            <p *ngIf="popupInfo.description" class="map-popup-description">{{ popupInfo.description }}</p>
+
+            <div *ngIf="popupInfo.details" class="map-popup-details">
+                <div *ngFor="let item of detailItems" class="map-popup-detail-item">
+                    <span class="map-popup-detail-label">{{ item.label }}:</span>
+                    <span class="map-popup-detail-value">{{ item.value }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
