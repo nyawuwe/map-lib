@@ -15,7 +15,14 @@ export * from './lib/services/icon.service';
 export * from './lib/services/popup.service';
 export * from './lib/services/asset.service';
 export * from './lib/services/places.service';
+export * from './lib/services/map-config.service';
 
 export * from './lib/models/map-options.model';
 export * from './lib/models/layer.model';
 export * from './lib/models/popup-info.model';
+export * from './lib/models/map-provider.model';
+export * from './lib/models/layer-info.model';
+
+export * from './lib/providers/map-provider.factory';
+export * from './lib/providers/leaflet-provider';
+export * from './lib/providers/mapbox-provider';

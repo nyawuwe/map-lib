@@ -3,103 +3,139 @@ import { BehaviorSubject, Observable } from 'rxjs';
 import * as L from 'leaflet';
 import { MapLibOptions } from '../models/map-options.model';
 import { MapLayer } from '../models/layer.model';
+import { MapProvider, MapProviderOptions, MapProviderType } from '../models/map-provider.model';
+import { MapProviderFactory } from '../providers/map-provider.factory';
 
 @Injectable({
   providedIn: 'root'
 })
 export class MapService {
-  private map: L.Map | null = null;
+  private provider: MapProvider | null = null;
+  private providerType: MapProviderType = MapProviderType.LEAFLET;
   private layers: Map<string, MapLayer> = new Map();
 
   private mapReady = new BehaviorSubject<boolean>(false);
   mapReady$ = this.mapReady.asObservable();
 
-  constructor() { }
+  constructor(private providerFactory: MapProviderFactory) { }
 
-  initMap(element: HTMLElement, options: MapLibOptions): L.Map {
-    const defaultOptions: MapLibOptions = {
-      center: [48.864716, 2.349014],
-      zoom: 5,
-      minZoom: 3,
-      maxZoom: 18
+  initMap(element: HTMLElement, options: MapLibOptions, providerOptions?: MapProviderOptions): any {
+    const defaultProviderOptions: MapProviderOptions = {
+      type: MapProviderType.LEAFLET,
+      leafletOptions: options
     };
 
-    const mergedOptions = { ...defaultOptions, ...options };
+    const mergedProviderOptions = { ...defaultProviderOptions, ...providerOptions };
+    this.providerType = mergedProviderOptions.type;
 
-    this.map = L.map(element, {
-      center: mergedOptions.center,
-      zoom: mergedOptions.zoom,
-      minZoom: mergedOptions.minZoom,
-      maxZoom: mergedOptions.maxZoom,
-      zoomControl: false,
-      ...mergedOptions.options
-    });
+    this.provider = this.providerFactory.createProvider(mergedProviderOptions);
+    const map = this.provider.initialize(element, mergedProviderOptions);
 
-    // Ajout d'une couche de base (OpenStreetMap)
-    const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-    });
-
-    baseLayer.addTo(this.map);
-
-    // Ajout de la couche de base à notre gestionnaire de couches
-    this.addLayer({
-      id: 'base-layer',
-      name: 'Carte de base',
-      layer: baseLayer,
-      enabled: true,
-      zIndex: 0
-    });
+    // Si nous utilisons MapBox, il n'y a pas de couche de base à ajouter car elle est incluse dans le style
+    if (this.providerType === MapProviderType.LEAFLET) {
+      // La couche de base est déjà gérée dans le LeafletProvider
+    }
 
     this.mapReady.next(true);
-    return this.map;
+    return map;
   }
 
-  getMap(): L.Map | null {
-    return this.map;
+  getMap(): any {
+    if (!this.provider) {
+      console.error('Map not initialized');
+      return null;
+    }
+    return this.provider.getUnderlyingMap();
   }
 
   addLayer(mapLayer: MapLayer): void {
-    if (!this.map) {
+    if (!this.provider) {
       console.error('Map not initialized');
       return;
     }
 
     this.layers.set(mapLayer.id, mapLayer);
 
-    if (mapLayer.enabled) {
-      mapLayer.layer.addTo(this.map);
+    // Pour Mapbox, nous devons adapter la couche si elle est au format Leaflet
+    if (this.providerType === MapProviderType.MAPBOX && mapLayer.layer instanceof L.Layer) {
+      // Conversion d'un type de couche Leaflet vers Mapbox
+      if (mapLayer.layer instanceof L.Marker) {
+        const marker = mapLayer.layer;
+        const latlng = marker.getLatLng();
+
+        // Créer une couche de type marqueur pour Mapbox
+        const mapboxLayer = {
+          type: 'marker',
+          markers: [{
+            lngLat: [latlng.lng, latlng.lat],
+            options: {},
+            popup: marker.getPopup() ? {
+              html: marker.getPopup()!.getContent()?.toString() || ''
+            } : undefined
+          }]
+        };
+
+        this.provider.addLayer(mapLayer.id, mapboxLayer, mapLayer.enabled);
+      }
+      else if (mapLayer.layer instanceof L.TileLayer) {
+        // Pour les TileLayer, nous ne pouvons pas les convertir directement
+        // mais nous pourrions essayer d'utiliser un style Mapbox similaire
+        console.warn('TileLayer non converti pour Mapbox. Utilisez un style Mapbox à la place.');
+      }
+      else if (mapLayer.layer instanceof L.GeoJSON) {
+        // Conversion GeoJSON Leaflet vers Mapbox
+        const geojson = mapLayer.layer.toGeoJSON();
+
+        // Créer une couche GeoJSON pour Mapbox
+        const mapboxLayer = {
+          type: 'geojson',
+          data: geojson,
+          style: {
+            type: 'circle',  // Par défaut
+            paint: {
+              'circle-radius': 6,
+              'circle-color': '#FF0000'
+            }
+          }
+        };
+
+        this.provider.addLayer(mapLayer.id, mapboxLayer, mapLayer.enabled);
+      }
+      else if (mapLayer.layer instanceof L.LayerGroup) {
+        // Pour les groupes, nous devrions traiter chaque couche individuellement
+        // mais pour la simplicité, nous allons juste afficher un avertissement
+        console.warn('LayerGroup non complètement converti pour Mapbox. Certaines fonctionnalités peuvent ne pas fonctionner.');
+      }
+      else {
+        console.warn(`Type de couche non pris en charge pour la conversion vers Mapbox: ${mapLayer.layer.constructor.name}`);
+      }
+    }
+    else {
+      // Utilisation directe du provider
+      this.provider.addLayer(mapLayer.id, mapLayer.layer, mapLayer.enabled);
     }
   }
 
   removeLayer(layerId: string): void {
-    if (!this.map) {
+    if (!this.provider) {
       console.error('Map not initialized');
       return;
     }
 
-    const layer = this.layers.get(layerId);
-    if (layer) {
-      this.map.removeLayer(layer.layer);
-      this.layers.delete(layerId);
-    }
+    this.provider.removeLayer(layerId);
+    this.layers.delete(layerId);
   }
 
   toggleLayer(layerId: string, visible: boolean): void {
-    if (!this.map) {
+    if (!this.provider) {
       console.error('Map not initialized');
       return;
     }
 
+    this.provider.toggleLayer(layerId, visible);
+
     const layer = this.layers.get(layerId);
     if (layer) {
-      if (visible && !layer.enabled) {
-        this.map.addLayer(layer.layer);
-        layer.enabled = true;
-      } else if (!visible && layer.enabled) {
-        this.map.removeLayer(layer.layer);
-        layer.enabled = false;
-      }
       this.layers.set(layerId, { ...layer, enabled: visible });
     }
   }
@@ -109,26 +145,76 @@ export class MapService {
   }
 
   fitBounds(bounds: L.LatLngBoundsExpression): void {
-    if (!this.map) {
+    if (!this.provider) {
       console.error('Map not initialized');
       return;
     }
 
-    this.map.fitBounds(bounds);
+    this.provider.fitBounds(bounds);
   }
 
   setView(center: L.LatLngExpression, zoom?: number): void {
-    if (!this.map) {
+    if (!this.provider) {
       console.error('Map not initialized');
       return;
     }
 
-    this.map.setView(center, zoom);
+    this.provider.setView(center, zoom);
   }
 
   resize(): void {
-    if (this.map) {
-      this.map.invalidateSize();
+    if (this.provider) {
+      this.provider.resize();
     }
+  }
+
+  getCurrentProviderType(): MapProviderType {
+    return this.providerType;
+  }
+
+  getCenter(): L.LatLngExpression {
+    if (!this.provider) {
+      console.error('Map not initialized');
+      return [0, 0]; // Position par défaut
+    }
+
+    const map = this.provider.getUnderlyingMap();
+
+    if (this.providerType === MapProviderType.LEAFLET) {
+      return (map as L.Map).getCenter();
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      const center = map.getCenter();
+      // Convertir de [lng, lat] en [lat, lng] pour être compatible avec Leaflet
+      return [center.lat, center.lng];
+    }
+
+    return [0, 0]; // Position par défaut
+  }
+
+  getZoom(): number {
+    if (!this.provider) {
+      console.error('Map not initialized');
+      return 5; // Zoom par défaut
+    }
+
+    const map = this.provider.getUnderlyingMap();
+
+    if (this.providerType === MapProviderType.LEAFLET) {
+      return (map as L.Map).getZoom();
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      return map.getZoom();
+    }
+
+    return 5; // Zoom par défaut
+  }
+
+  destroyMap(): void {
+    if (this.provider) {
+      this.provider.destroy();
+      this.provider = null;
+      this.mapReady.next(false);
+    }
+
+    // Conserver les couches pour pouvoir les réutiliser lors de la réinitialisation
   }
 }
