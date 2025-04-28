@@ -2,6 +2,7 @@ import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { PopupInfo } from '../../models/popup-info.model';
 import { AssetService } from '../../services/asset.service';
+import * as olc from 'open-location-code';
 
 interface DetailItem {
     label: string;
@@ -17,6 +18,8 @@ interface DetailItem {
 })
 export class PopupComponent implements OnInit {
     @Input() popupInfo!: PopupInfo;
+    @Input() latitude?: number;
+    @Input() longitude?: number;
 
     defaultImageUrl: string = '';
     detailItems: DetailItem[] = [];
@@ -35,6 +38,23 @@ export class PopupComponent implements OnInit {
                 label: key,
                 value: value
             }));
+        }
+
+        // Ajouter le plus code si les coordonnées sont disponibles
+        if (this.latitude && this.longitude) {
+            try {
+                const OpenLocationCode = olc.OpenLocationCode;
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const encoder = new OpenLocationCode() as any;
+                const plusCode = encoder.encode(this.latitude, this.longitude);
+
+                this.detailItems.push({
+                    label: 'Plus Code',
+                    value: plusCode
+                });
+            } catch (error) {
+                console.error("Erreur lors de l'encodage du Plus Code:", error);
+            }
         }
     }
 }

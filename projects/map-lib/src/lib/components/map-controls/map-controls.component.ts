@@ -22,6 +22,7 @@ export class MapControlsComponent implements OnInit, OnDestroy {
     private locationMarker: L.Marker | null = null;
     private locationCircle: L.Circle | null = null;
     isLocating = false;
+    isSatelliteView = false;
 
     constructor(private mapService: MapService) { }
 
@@ -51,6 +52,30 @@ export class MapControlsComponent implements OnInit, OnDestroy {
         }
     }
 
+    toggleViewType(): void {
+        if (!this.map) return;
+
+        this.isSatelliteView = !this.isSatelliteView;
+
+        // Supprimer toutes les couches de tuiles existantes
+        this.map.eachLayer((layer) => {
+            if (layer instanceof L.TileLayer) {
+                this.map.removeLayer(layer);
+            }
+        });
+
+        // Ajouter la nouvelle couche de tuiles
+        if (this.isSatelliteView) {
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+            }).addTo(this.map);
+        } else {
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            }).addTo(this.map);
+        }
+    }
+
     locateUser(): void {
         this.isLocating = !this.isLocating;
         this.locate.emit(this.isLocating);
@@ -60,7 +85,8 @@ export class MapControlsComponent implements OnInit, OnDestroy {
                 watch: true,
                 setView: true,
                 maxZoom: 16,
-                enableHighAccuracy: true
+                enableHighAccuracy: true,
+                timeout: 30000
             });
 
             // Listener pour la localisation trouvée
@@ -139,7 +165,20 @@ export class MapControlsComponent implements OnInit, OnDestroy {
         // Émettre l'événement d'erreur
         this.locationError.emit(e);
 
-        // Afficher une notification ou un message d'erreur ici si nécessaire
-        alert(`Impossible de déterminer votre position: ${e.message}`);
+        let message = "Impossible de déterminer votre position: ";
+        switch (e.code) {
+            case 1:
+                message += "Accès refusé. Veuillez autoriser l'accès à votre position dans les paramètres du navigateur.";
+                break;
+            case 2:
+                message += "Position indisponible. Vérifiez que votre GPS est activé.";
+                break;
+            case 3:
+                message += "Timeout expiré. Veuillez réessayer.";
+                break;
+            default:
+                message += e.message;
+        }
+        alert(message);
     }
 }

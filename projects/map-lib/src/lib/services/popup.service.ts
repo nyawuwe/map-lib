@@ -17,7 +17,7 @@ export class PopupService {
     /**
      * Crée un popup Leaflet avec une apparence Card moderne
      */
-    createPopup(popupInfo: PopupInfo, options?: L.PopupOptions): L.Popup {
+    createPopup(popupInfo: PopupInfo, latLng?: L.LatLng, options?: L.PopupOptions): L.Popup {
         // Configuration par défaut du popup Leaflet
         const defaultOptions: L.PopupOptions = {
             className: 'custom-popup',
@@ -49,6 +49,10 @@ export class PopupService {
 
         // Passer les informations au composant
         componentRef.instance.popupInfo = popupInfo;
+        if (latLng) {
+            componentRef.instance.latitude = latLng.lat;
+            componentRef.instance.longitude = latLng.lng;
+        }
 
         // Attacher le composant à l'application
         this.applicationRef.attachView(componentRef.hostView);
@@ -69,7 +73,7 @@ export class PopupService {
      * Ajoute un popup à un marqueur existant
      */
     bindPopupToMarker(marker: L.Marker, popupInfo: PopupInfo, options?: L.PopupOptions): L.Marker {
-        const popup = this.createPopup(popupInfo, options);
+        const popup = this.createPopup(popupInfo, marker.getLatLng(), options);
 
         // Configurer le popup avec des options avancées
         marker.bindPopup(popup);

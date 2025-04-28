@@ -9,6 +9,11 @@
             <i class="fas fa-minus"></i>
         </button>
 
+        <button class="map-control-button view-type-button" [class.active]="isSatelliteView" (click)="toggleViewType()"
+            aria-label="Changer le type de vue" title="Changer le type de vue">
+            <i class="fas fa-satellite"></i>
+        </button>
+
         <button class="map-control-button location-button" [class.active]="isLocating" (click)="locateUser()"
             aria-label="Ma position" title="Ma position">
             <i class="fas fa-crosshairs"></i>

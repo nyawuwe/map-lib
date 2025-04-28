@@ -51,6 +51,15 @@
     color: #F44336;
 }
 
+.view-type-button {
+    color: #9C27B0;
+}
+
+.view-type-button.active {
+    background-color: #9C27B0;
+    color: white;
+}
+
 .location-button {
     color: #2196F3;
 }
@@ -95,14 +104,17 @@
 
 @keyframes location-pulse {
     0% {
-        box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.5);
+        transform: scale(1);
+        opacity: 1;
     }
 
-    70% {
-        box-shadow: 0 0 0 15px rgba(33, 150, 243, 0);
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
     }
 
     100% {
-        box-shadow: 0 0 0 0 rgba(33, 150, 243, 0);
+        transform: scale(1);
+        opacity: 1;
     }
 }
