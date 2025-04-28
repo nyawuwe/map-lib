@@ -11,7 +11,7 @@ import { MapService } from './services/map.service';
 import { IconService } from './services/icon.service';
 import { PopupService } from './services/popup.service';
 import { AssetService } from './services/asset.service';
-import { PlacesService, GOOGLE_PLACES_API_KEY } from './services/places.service';
+import { PlacesService, GOOGLE_PLACES_API_KEY, MAPBOX_ACCESS_TOKEN } from './services/places.service';
 import { MAP_LIB_CONFIG, MapLibConfig } from './services/map-config.service';
 
 @NgModule({
@@ -42,12 +42,17 @@ import { MAP_LIB_CONFIG, MapLibConfig } from './services/map-config.service';
   ]
 })
 export class MapLibModule {
-  static forRoot(config: MapLibConfig = {}, googlePlacesApiKey?: string): ModuleWithProviders<MapLibModule> {
+  static forRoot(
+    config: MapLibConfig = {},
+    googlePlacesApiKey?: string,
+    mapboxAccessToken?: string
+  ): ModuleWithProviders<MapLibModule> {
     return {
       ngModule: MapLibModule,
       providers: [
         { provide: MAP_LIB_CONFIG, useValue: config },
-        ...(googlePlacesApiKey ? [{ provide: GOOGLE_PLACES_API_KEY, useValue: googlePlacesApiKey }] : [])
+        ...(googlePlacesApiKey ? [{ provide: GOOGLE_PLACES_API_KEY, useValue: googlePlacesApiKey }] : []),
+        ...(mapboxAccessToken ? [{ provide: MAPBOX_ACCESS_TOKEN, useValue: mapboxAccessToken }] : [])
       ]
     };
   }

@@ -2,7 +2,7 @@ import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, ChangeDetec
 import { MapService } from '../../services/map.service';
 import { MapLibOptions } from '../../models/map-options.model';
 import * as L from 'leaflet';
-import { MapControlsComponent } from '../map-controls/map-controls.component';
+import { MapControlsComponent, LocationData } from '../map-controls/map-controls.component';
 import { CommonModule } from '@angular/common';
 import { PlusCodeCardComponent } from '../plus-code-card/plus-code-card.component';
 import { MapProviderOptions, MapProviderType } from '../../models/map-provider.model';
@@ -133,13 +133,19 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  onLocationFound(e: L.LocationEvent): void {
+  onLocationFound(e: LocationData): void {
     if (this.plusCodeCard) {
-      this.plusCodeCard.show(e.latlng.lat, e.latlng.lng);
+      // Vérifier le type de latlng et extraire les coordonnées en conséquence
+      if (e.latlng instanceof L.LatLng) {
+        this.plusCodeCard.show(e.latlng.lat, e.latlng.lng);
+      } else {
+        // Si c'est un tableau [lat, lng]
+        this.plusCodeCard.show(e.latlng[0], e.latlng[1]);
+      }
     }
   }
 
-  onLocationError(e: L.ErrorEvent): void {
+  onLocationError(e: any): void {
     if (this.plusCodeCard) {
       this.plusCodeCard.hide();
     }
