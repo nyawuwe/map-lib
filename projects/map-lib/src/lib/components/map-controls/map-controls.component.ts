@@ -15,6 +15,8 @@ import { Map as LeafletMap } from 'leaflet';
 export class MapControlsComponent implements OnInit, OnDestroy {
     @Input() map!: LeafletMap;
     @Output() locate = new EventEmitter<boolean>();
+    @Output() locationFound = new EventEmitter<L.LocationEvent>();
+    @Output() locationError = new EventEmitter<L.ErrorEvent>();
 
     private mapReadySubscription: Subscription | null = null;
     private locationMarker: L.Marker | null = null;
@@ -125,11 +127,17 @@ export class MapControlsComponent implements OnInit, OnDestroy {
             enabled: true,
             zIndex: 100
         });
+
+        // Émettre l'événement de localisation trouvée
+        this.locationFound.emit(e);
     }
 
     private onLocationError(e: L.ErrorEvent): void {
         console.error('Erreur de localisation:', e.message);
         this.isLocating = false;
+
+        // Émettre l'événement d'erreur
+        this.locationError.emit(e);
 
         // Afficher une notification ou un message d'erreur ici si nécessaire
         alert(`Impossible de déterminer votre position: ${e.message}`);

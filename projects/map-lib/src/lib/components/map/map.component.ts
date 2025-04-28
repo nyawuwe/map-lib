@@ -4,13 +4,19 @@ import { MapLibOptions } from '../../models/map-options.model';
 import * as L from 'leaflet';
 import { MapControlsComponent } from '../map-controls/map-controls.component';
 import { CommonModule } from '@angular/common';
+import { PlusCodeCardComponent } from '../plus-code-card/plus-code-card.component';
 
 @Component({
   selector: 'lib-map',
   template: `
     <div class="map-container">
       <div #mapContainer class="map-element"></div>
-      <lib-map-controls *ngIf="map" [map]="map"></lib-map-controls>
+      <lib-map-controls *ngIf="map"
+        [map]="map"
+        (locationFound)="onLocationFound($event)"
+        (locationError)="onLocationError($event)">
+      </lib-map-controls>
+      <lib-plus-code-card *ngIf="map"></lib-plus-code-card>
     </div>
   `,
   styles: [`
@@ -27,10 +33,11 @@ import { CommonModule } from '@angular/common';
     }
   `],
   standalone: true,
-  imports: [CommonModule, MapControlsComponent]
+  imports: [CommonModule, MapControlsComponent, PlusCodeCardComponent]
 })
 export class MapComponent implements OnInit, OnDestroy {
   @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
+  @ViewChild(PlusCodeCardComponent) plusCodeCard!: PlusCodeCardComponent;
 
   @Input() options: MapLibOptions = {};
 
@@ -45,6 +52,18 @@ export class MapComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.map) {
       this.map.remove();
+    }
+  }
+
+  onLocationFound(e: L.LocationEvent): void {
+    if (this.plusCodeCard) {
+      this.plusCodeCard.show(e.latlng.lat, e.latlng.lng);
+    }
+  }
+
+  onLocationError(e: L.ErrorEvent): void {
+    if (this.plusCodeCard) {
+      this.plusCodeCard.hide();
     }
   }
 

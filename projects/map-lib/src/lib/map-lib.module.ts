@@ -4,6 +4,7 @@ import { MapComponent } from './components/map/map.component';
 import { LayerControlComponent } from './components/layer-control/layer-control.component';
 import { PopupComponent } from './components/popup/popup.component';
 import { MapControlsComponent } from './components/map-controls/map-controls.component';
+import { PlusCodeCardComponent } from './components/plus-code-card/plus-code-card.component';
 import { MapService } from './services/map.service';
 import { IconService } from './services/icon.service';
 import { PopupService } from './services/popup.service';
@@ -15,13 +16,15 @@ import { AssetService } from './services/asset.service';
         MapComponent,
         LayerControlComponent,
         PopupComponent,
-        MapControlsComponent
+        MapControlsComponent,
+        PlusCodeCardComponent
     ],
     exports: [
         MapComponent,
         LayerControlComponent,
         PopupComponent,
-        MapControlsComponent
+        MapControlsComponent,
+        PlusCodeCardComponent
     ],
     providers: [
         MapService,

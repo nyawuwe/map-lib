@@ -4,8 +4,8 @@ import { MapService } from '../../services/map.service';
 import { MapLayer } from '../../models/layer.model';
 
 @Component({
-    selector: 'lib-layer-control',
-    template: `
+  selector: 'lib-layer-control',
+  template: `
     <div class="layer-control">
       <div class="layer-title">Couches</div>
       <div class="layer-list">
@@ -21,7 +21,7 @@ import { MapLayer } from '../../models/layer.model';
       </div>
     </div>
   `,
-    styles: [`
+  styles: [`
     .layer-control {
       background-color: white;
       border-radius: 4px;
@@ -46,28 +46,28 @@ import { MapLayer } from '../../models/layer.model';
       gap: 4px;
     }
   `],
-    standalone: true,
-    imports: [CommonModule]
+  standalone: true,
+  imports: [CommonModule]
 })
 export class LayerControlComponent implements OnInit {
-    layers: MapLayer[] = [];
+  layers: MapLayer[] = [];
 
-    constructor(private mapService: MapService) { }
+  constructor(private mapService: MapService) { }
 
-    ngOnInit(): void {
-        this.mapService.mapReady$.subscribe(ready => {
-            if (ready) {
-                this.loadLayers();
-            }
-        });
-    }
+  ngOnInit(): void {
+    this.mapService.mapReady$.subscribe(ready => {
+      if (ready) {
+        this.loadLayers();
+      }
+    });
+  }
 
-    loadLayers(): void {
-        this.layers = this.mapService.getLayers();
-    }
+  loadLayers(): void {
+    this.layers = this.mapService.getLayers();
+  }
 
-    toggleLayer(layerId: string, event: Event): void {
-        const target = event.target as HTMLInputElement;
-        this.mapService.toggleLayer(layerId, target.checked);
-    }
+  toggleLayer(layerId: string, event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.mapService.toggleLayer(layerId, target.checked);
+  }
 }

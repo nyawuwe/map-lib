@@ -10,7 +10,7 @@ import * as L from 'leaflet';
   imports: [CommonModule, MapLibModule],
   template: `
     <div class="demo-container">
-      <h2>Carte avec marqueurs Font Awesome et popups personnalisés</h2>
+      <h2>Carte avec la couche des marqueurs</h2>
       <div class="map-container">
         <lib-map [options]="mapOptions"></lib-map>
         <div class="controls">
