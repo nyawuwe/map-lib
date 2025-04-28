@@ -5,6 +5,13 @@ import * as L from 'leaflet';
 import { Subscription } from 'rxjs';
 import { Map as LeafletMap } from 'leaflet';
 
+// Définir les types de vue disponibles
+export enum MapViewType {
+    DEFAULT = 'default',
+    SATELLITE = 'satellite',
+    GOOGLE = 'google'
+}
+
 @Component({
     selector: 'lib-map-controls',
     templateUrl: './map-controls.component.html',
@@ -22,7 +29,23 @@ export class MapControlsComponent implements OnInit, OnDestroy {
     private locationMarker: L.Marker | null = null;
     private locationCircle: L.Circle | null = null;
     isLocating = false;
-    isSatelliteView = false;
+    currentViewType: MapViewType = MapViewType.DEFAULT;
+
+    // URLs des différentes couches de tuiles
+    private tileLayers = {
+        [MapViewType.DEFAULT]: {
+            url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        },
+        [MapViewType.SATELLITE]: {
+            url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        },
+        [MapViewType.GOOGLE]: {
+            url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+            attribution: '&copy; Google Maps'
+        }
+    };
 
     constructor(private mapService: MapService) { }
 
@@ -55,7 +78,14 @@ export class MapControlsComponent implements OnInit, OnDestroy {
     toggleViewType(): void {
         if (!this.map) return;
 
-        this.isSatelliteView = !this.isSatelliteView;
+        // Passer au type de vue suivant
+        if (this.currentViewType === MapViewType.DEFAULT) {
+            this.currentViewType = MapViewType.SATELLITE;
+        } else if (this.currentViewType === MapViewType.SATELLITE) {
+            this.currentViewType = MapViewType.GOOGLE;
+        } else {
+            this.currentViewType = MapViewType.DEFAULT;
+        }
 
         // Supprimer toutes les couches de tuiles existantes
         this.map.eachLayer((layer) => {
@@ -65,15 +95,10 @@ export class MapControlsComponent implements OnInit, OnDestroy {
         });
 
         // Ajouter la nouvelle couche de tuiles
-        if (this.isSatelliteView) {
-            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-            }).addTo(this.map);
-        } else {
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            }).addTo(this.map);
-        }
+        const tileLayer = this.tileLayers[this.currentViewType];
+        L.tileLayer(tileLayer.url, {
+            attribution: tileLayer.attribution
+        }).addTo(this.map);
     }
 
     locateUser(): void {

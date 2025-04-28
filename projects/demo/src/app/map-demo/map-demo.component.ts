@@ -1,8 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MapLibModule, MapService, MapLibOptions } from 'map-lib';
 import { IconService, PopupInfo } from 'map-lib';
 import * as L from 'leaflet';
+import { MapComponent } from 'map-lib';
 
 @Component({
   selector: 'app-map-demo',
@@ -12,10 +13,11 @@ import * as L from 'leaflet';
     <div class="demo-container">
       <h2>Carte avec la couche des marqueurs</h2>
       <div class="map-container">
-        <lib-map [options]="mapOptions"></lib-map>
+        <lib-map [options]="mapOptions" #mapComponent></lib-map>
         <div class="controls">
           <lib-layer-control></lib-layer-control>
         </div>
+        <lib-places-search [map]="mapComponent?.map ?? null"></lib-places-search>
       </div>
     </div>
   `,
@@ -44,6 +46,8 @@ import * as L from 'leaflet';
   `]
 })
 export class MapDemoComponent implements OnInit {
+  @ViewChild('mapComponent') mapComponent!: MapComponent;
+
   mapOptions: MapLibOptions = {
     center: [46.603354, 1.888334],
     zoom: 6

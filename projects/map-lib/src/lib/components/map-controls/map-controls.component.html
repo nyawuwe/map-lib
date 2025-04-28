@@ -9,9 +9,13 @@
             <i class="fas fa-minus"></i>
         </button>
 
-        <button class="map-control-button view-type-button" [class.active]="isSatelliteView" (click)="toggleViewType()"
-            aria-label="Changer le type de vue" title="Changer le type de vue">
-            <i class="fas fa-satellite"></i>
+        <button class="map-control-button view-type-button" [class.active]="currentViewType !== 'default'"
+            (click)="toggleViewType()" aria-label="Changer le type de vue" title="Changer le type de vue">
+            <i class="fas" [ngClass]="{
+                'fa-map': currentViewType === 'default',
+                'fa-satellite': currentViewType === 'satellite',
+                'fa-map-marked-alt': currentViewType === 'google'
+            }"></i>
         </button>
 
         <button class="map-control-button location-button" [class.active]="isLocating" (click)="locateUser()"
