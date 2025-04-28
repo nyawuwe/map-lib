@@ -44,6 +44,9 @@ import * as L from 'leaflet';
               <div class="place-rating" *ngIf="place.rating">
                 <i class="fas fa-star"></i> {{ place.rating }}
               </div>
+              <div class="place-plus-code" *ngIf="place.plusCode">
+                <i class="fas fa-map-marker-alt"></i> {{ place.plusCode }}
+              </div>
             </div>
           </div>
         </div>
@@ -167,6 +170,12 @@ import * as L from 'leaflet';
     .place-rating {
       font-size: 12px;
       color: #f39c12;
+      margin-top: 2px;
+    }
+
+    .place-plus-code {
+      font-size: 12px;
+      color: #666;
       margin-top: 2px;
     }
 
