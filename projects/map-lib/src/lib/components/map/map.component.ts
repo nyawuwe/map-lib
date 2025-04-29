@@ -12,39 +12,8 @@ import { MapConfigService } from '../../services/map-config.service';
 
 @Component({
   selector: 'lib-map',
-  template: `
-    <div class="map-container">
-      <div #mapContainer class="map-element"></div>
-      <lib-map-controls *ngIf="map"
-        [map]="map"
-        (locationFound)="onLocationFound($event)"
-        (locationError)="onLocationError($event)">
-      </lib-map-controls>
-      <lib-plus-code-card *ngIf="map"></lib-plus-code-card>
-      <div class="layer-control-container" *ngIf="map">
-        <lib-layer-control #layerControl (providerChange)="onProviderChange($event)"></lib-layer-control>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .map-container {
-      width: 100%;
-      height: 100%;
-      display: block;
-      box-sizing: border-box;
-      position: relative;
-    }
-    .map-element {
-      width: 100%;
-      height: 100%;
-    }
-    .layer-control-container {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1000;
-    }
-  `],
+  templateUrl: './map.component.html',
+  styleUrls: ['./map.component.css'],
   standalone: true,
   imports: [CommonModule, MapControlsComponent, PlusCodeCardComponent, LayerControlComponent]
 })
@@ -71,7 +40,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('MapComponent initialized');
-    // Si aucun providerOptions n'est fourni, utilisez la configuration par défaut
+
     if (!this.providerOptions) {
       this.providerOptions = {
         type: this.mapConfig.defaultProvider,
@@ -82,7 +51,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.initMap();
 
-    // Ajouter un écouteur d'événement global pour les changements de fournisseur
     this.setupProviderChangeListener();
   }
 
@@ -90,12 +58,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     console.log('MapComponent view initialized');
     console.log('LayerControl component reference:', this.layerControl ? 'available' : 'not available');
 
-    // S'assurer que le LayerControl est correctement configuré après l'initialisation de la vue
     if (this.layerControl) {
       console.log('Setting current provider in LayerControl');
       this.layerControl.currentProvider = this.mapProviderType;
 
-      // Ajouter un attribut personnalisé pour faciliter la sélection DOM
       this.renderer.setAttribute(
         this.layerControl.constructor.prototype.providerChange.prototype,
         'map-provider-change',
@@ -106,20 +72,17 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     console.log('MapComponent destroyed');
-    // Nettoyer l'écouteur d'événement
+
     this.providerChangeEventListener();
 
-    // Nous utilisons le provider à travers le service
     if (this.map) {
       if (this.mapProviderType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
         this.map.remove();
       }
-      // Pour Mapbox, la suppression est gérée par le provider
     }
   }
 
   setupProviderChangeListener(): void {
-    // Configurer un écouteur d'événement personnalisé pour les changements de fournisseur
     const handler = (event: any) => {
       console.log('Custom provider change event detected:', event.detail);
       if (event.detail && typeof event.detail.providerType !== 'undefined') {
@@ -135,11 +98,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   onLocationFound(e: LocationData): void {
     if (this.plusCodeCard) {
-      // Vérifier le type de latlng et extraire les coordonnées en conséquence
       if (e.latlng instanceof L.LatLng) {
         this.plusCodeCard.show(e.latlng.lat, e.latlng.lng);
       } else {
-        // Si c'est un tableau [lat, lng]
         this.plusCodeCard.show(e.latlng[0], e.latlng[1]);
       }
     }
@@ -159,7 +120,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       return;
     }
 
-    // Sauvegarde des couches actuelles (copie profonde pour éviter toute référence)
     const currentLayers: LayerInfo[] = JSON.parse(JSON.stringify(
       this.mapService.getLayers()
         .filter(layer => layer.id !== 'base-layer')
@@ -175,20 +135,17 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     console.log(`MapComponent: Couches à sauvegarder: ${currentLayers.length}`);
 
     try {
-      // Récupération des informations avant destruction
       const mapCenter = this.mapService.getCenter();
       const mapZoom = this.mapService.getZoom();
 
       console.log(`MapComponent: Position actuelle: ${JSON.stringify(mapCenter)}, zoom: ${mapZoom}`);
 
-      // Destruction de la carte actuelle
       this.mapService.destroyMap();
       this.map = null;
 
-      // Création des options pour le nouveau fournisseur
+
       let apiKey = '';
       if (providerType === MapProviderType.MAPBOX) {
-        // Utiliser la clé API Mapbox de la configuration ou des options existantes
         apiKey = this.providerOptions?.apiKey || this.mapConfig.mapboxApiKey;
 
         if (!apiKey) {
@@ -205,7 +162,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         mapStyle: this.providerOptions?.mapStyle || this.mapConfig.defaultMapStyle
       };
 
-      // Mise à jour des options de la carte avec la position actuelle
       const newOptions: MapLibOptions = {
         ...this.options,
         center: mapCenter,
@@ -216,19 +172,16 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       console.log('MapComponent: Options:', JSON.stringify(newOptions));
       console.log('MapComponent: Provider options:', JSON.stringify({
         ...newProviderOptions,
-        apiKey: apiKey ? '[REDACTED]' : '' // Ne pas logger la clé API
+        apiKey: apiKey ? '[REDACTED]' : ''
       }));
 
-      // Initialisation de la nouvelle carte
       this.map = this.mapService.initMap(this.mapContainer.nativeElement, newOptions, newProviderOptions);
       this.mapProviderType = this.mapService.getCurrentProviderType();
 
       console.log(`MapComponent: Carte initialisée avec le fournisseur: ${this.mapProviderType}`);
 
-      // Forcer la mise à jour du composant
       this.changeDetectorRef.detectChanges();
 
-      // Mettre à jour le contrôle de couches avec le nouveau fournisseur
       if (this.layerControl) {
         console.log('MapComponent: Mise à jour du provider dans layerControl');
         this.layerControl.currentProvider = this.mapProviderType;
@@ -236,22 +189,18 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         console.warn('MapComponent: layerControl non disponible');
       }
 
-      // Rétablir les couches avec un délai pour s'assurer que la carte est bien initialisée
       setTimeout(() => {
         console.log('MapComponent: Restauration des couches...');
 
         if (currentLayers.length > 0) {
           currentLayers.forEach((layerInfo: LayerInfo) => {
             try {
-              // Recréer chaque couche selon son type
               let newLayer: any;
 
               if (layerInfo.type === 'marker' && providerType === MapProviderType.LEAFLET) {
-                // Créer un marqueur Leaflet
                 newLayer = L.marker([48.8566, 2.3522]).bindPopup('Paris');
               }
               else if (layerInfo.type === 'marker' && providerType === MapProviderType.MAPBOX) {
-                // Créer un marqueur Mapbox
                 newLayer = {
                   type: 'marker',
                   markers: [{
@@ -260,7 +209,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
                   }]
                 };
               }
-              // Ajoutez d'autres types de couches au besoin
 
               if (newLayer) {
                 this.mapService.addLayer({

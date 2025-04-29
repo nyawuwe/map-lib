@@ -1,0 +1,10 @@
+<div class="map-container">
+  <div #mapContainer class="map-element"></div>
+  <lib-map-controls *ngIf="map" [map]="map" (locationFound)="onLocationFound($event)"
+    (locationError)="onLocationError($event)">
+  </lib-map-controls>
+  <lib-plus-code-card *ngIf="map"></lib-plus-code-card>
+  <div class="layer-control-container" *ngIf="map">
+    <lib-layer-control #layerControl (providerChange)="onProviderChange($event)"></lib-layer-control>
+  </div>
+</div>
