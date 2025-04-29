@@ -9,41 +9,8 @@ import { MapComponent } from 'map-lib';
   selector: 'app-map-demo',
   standalone: true,
   imports: [CommonModule, MapLibModule],
-  template: `
-    <div class="demo-container">
-      <h2>Carte avec la couche des marqueurs</h2>
-      <div class="map-container">
-        <lib-map [options]="mapOptions" #mapComponent></lib-map>
-        <div class="controls">
-          <lib-layer-control></lib-layer-control>
-        </div>
-        <lib-places-search [map]="mapComponent?.map ?? null"></lib-places-search>
-      </div>
-    </div>
-  `,
-  styles: [`
-    .demo-container {
-      padding: 1rem;
-    }
-    h2 {
-      color: #333;
-      margin-bottom: 1rem;
-    }
-
-    .map-container {
-      height: 500px;
-      position: relative;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-    .controls {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1000;
-    }
-  `]
+  templateUrl: './map-demo.component.html',
+  styleUrls: ['./map-demo.component.css']
 })
 export class MapDemoComponent implements OnInit {
   @ViewChild('mapComponent') mapComponent!: MapComponent;
@@ -69,7 +36,7 @@ export class MapDemoComponent implements OnInit {
   addCustomLayers(): void {
     console.log('addCustomLayers');
 
-    // Popup info pour Paris
+
     const parisInfo: PopupInfo = {
       title: 'Paris',
       description: 'La ville lumière, capitale de la France.',
@@ -81,7 +48,6 @@ export class MapDemoComponent implements OnInit {
       }
     };
 
-    // Popup info pour Marseille
     const marseilleInfo: PopupInfo = {
       title: 'Marseille',
       description: 'Ville portuaire du sud de la France.',
@@ -145,7 +111,6 @@ export class MapDemoComponent implements OnInit {
       zIndex: 1
     });
 
-    // Ajouter un polygone
     const polygon = L.polygon([
       [48.8, 2.0],
       [48.9, 2.5],

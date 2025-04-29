@@ -37,6 +37,18 @@ export class MapService {
     }
 
     this.mapReady.next(true);
+
+    // Notifier du changement de fournisseur
+    setTimeout(() => {
+      const providerChangeEvent = new CustomEvent('map-provider-type-changed', {
+        detail: {
+          type: this.providerType,
+          map: map
+        }
+      });
+      document.dispatchEvent(providerChangeEvent);
+    }, 100);
+
     return map;
   }
 
@@ -213,6 +225,14 @@ export class MapService {
       this.provider.destroy();
       this.provider = null;
       this.mapReady.next(false);
+
+      // Notifier que la carte a été détruite
+      const providerChangeEvent = new CustomEvent('map-destroyed', {
+        detail: {
+          previousType: this.providerType
+        }
+      });
+      document.dispatchEvent(providerChangeEvent);
     }
 
     // Conserver les couches pour pouvoir les réutiliser lors de la réinitialisation

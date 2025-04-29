@@ -1,0 +1,10 @@
+<div class="demo-container">
+  <h2>Carte avec la couche des marqueurs</h2>
+  <div class="map-container">
+    <lib-map [options]="mapOptions" #mapComponent></lib-map>
+    <div class="controls">
+      <lib-layer-control></lib-layer-control>
+    </div>
+    <lib-places-search [map]="mapComponent?.map ?? null"></lib-places-search>
+  </div>
+</div>

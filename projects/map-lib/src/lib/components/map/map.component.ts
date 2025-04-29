@@ -143,7 +143,6 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       this.mapService.destroyMap();
       this.map = null;
 
-
       let apiKey = '';
       if (providerType === MapProviderType.MAPBOX) {
         apiKey = this.providerOptions?.apiKey || this.mapConfig.mapboxApiKey;
@@ -177,6 +176,17 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
       this.map = this.mapService.initMap(this.mapContainer.nativeElement, newOptions, newProviderOptions);
       this.mapProviderType = this.mapService.getCurrentProviderType();
+
+      // Diffuser l'événement de changement de fournisseur
+      const providerChangeEvent = new CustomEvent('map-provider-change', {
+        detail: {
+          providerType: this.mapProviderType,
+          map: this.map
+        }
+      });
+
+      // Émettre l'événement pour que les composants enfants puissent réagir
+      document.dispatchEvent(providerChangeEvent);
 
       console.log(`MapComponent: Carte initialisée avec le fournisseur: ${this.mapProviderType}`);
 

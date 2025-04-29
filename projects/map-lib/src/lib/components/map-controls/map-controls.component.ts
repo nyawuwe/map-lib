@@ -33,6 +33,7 @@ export class MapControlsComponent implements OnInit, OnDestroy {
   @Output() locationError = new EventEmitter<any>();
 
   private mapReadySubscription: Subscription | null = null;
+  private mapProviderChangeSubscription: Subscription | null = null;
   private locationMarker: L.Marker | mapboxgl.Marker | null = null;
   private locationCircle: L.Circle | null = null;
   private locationGeoJSONSource: string = 'user-location-geojson';
@@ -65,29 +66,59 @@ export class MapControlsComponent implements OnInit, OnDestroy {
     this.providerType = this.mapService.getCurrentProviderType();
 
     this.mapReadySubscription = this.mapService.mapReady$.subscribe(ready => {
-      if (ready && !this.map) {
-        this.map = this.mapService.getMap();
+      if (ready) {
+        const mapInstance = this.mapService.getMap();
+        if (mapInstance) {
+          this.map = mapInstance;
+          this.providerType = this.mapService.getCurrentProviderType();
+
+          if (this.isLocating) {
+            this.cleanupLocationResources();
+            this.startGeolocation();
+          }
+        }
       }
     });
+
+    document.addEventListener('map-provider-change', this.handleProviderChange);
   }
+
+  private handleProviderChange = (event: any) => {
+    if (event.detail && typeof event.detail.providerType !== 'undefined') {
+      setTimeout(() => {
+        const mapInstance = this.mapService.getMap();
+        if (mapInstance) {
+          this.map = mapInstance;
+          this.providerType = this.mapService.getCurrentProviderType();
+
+          this.resetViewTypeForProvider();
+
+          if (this.isLocating) {
+            this.cleanupLocationResources();
+            this.startGeolocation();
+          }
+        }
+      }, 500);
+    }
+  };
 
   ngOnDestroy(): void {
     if (this.mapReadySubscription) {
       this.mapReadySubscription.unsubscribe();
     }
 
+    document.removeEventListener('map-provider-change', this.handleProviderChange);
+
     this.cleanupLocationResources();
   }
 
   private cleanupLocationResources(): void {
-    if ((this as any).geolocationWatchId) {
-      navigator.geolocation.clearWatch((this as any).geolocationWatchId);
-      (this as any).geolocationWatchId = null;
+    if (this.geolocationWatchId) {
+      navigator.geolocation.clearWatch(this.geolocationWatchId);
+      this.geolocationWatchId = null;
     }
 
-    if (this.providerType === MapProviderType.LEAFLET) {
-      const leafletMap = this.map as LeafletMap;
-
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
       if (this.locationMarker) {
         (this.locationMarker as L.Marker).remove();
         this.locationMarker = null;
@@ -97,7 +128,11 @@ export class MapControlsComponent implements OnInit, OnDestroy {
         this.locationCircle.remove();
         this.locationCircle = null;
       }
-    } else if (this.providerType === MapProviderType.MAPBOX) {
+
+      (this.map as LeafletMap).off('locationfound');
+      (this.map as LeafletMap).off('locationerror');
+      (this.map as LeafletMap).stopLocate();
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
       try {
         const mapboxMap = this.map as mapboxgl.Map;
 
@@ -133,22 +168,22 @@ export class MapControlsComponent implements OnInit, OnDestroy {
   }
 
   zoomIn(): void {
-    if (this.map) {
-      if (this.providerType === MapProviderType.LEAFLET) {
-        (this.map as LeafletMap).zoomIn();
-      } else if (this.providerType === MapProviderType.MAPBOX) {
-        (this.map as mapboxgl.Map).zoomIn();
-      }
+    if (!this.map) return;
+
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
+      (this.map as LeafletMap).zoomIn();
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
+      (this.map as mapboxgl.Map).zoomIn();
     }
   }
 
   zoomOut(): void {
-    if (this.map) {
-      if (this.providerType === MapProviderType.LEAFLET) {
-        (this.map as LeafletMap).zoomOut();
-      } else if (this.providerType === MapProviderType.MAPBOX) {
-        (this.map as mapboxgl.Map).zoomOut();
-      }
+    if (!this.map) return;
+
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
+      (this.map as LeafletMap).zoomOut();
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
+      (this.map as mapboxgl.Map).zoomOut();
     }
   }
 
@@ -163,14 +198,16 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       this.currentViewType = MapViewType.DEFAULT;
     }
 
-    if (this.providerType === MapProviderType.LEAFLET) {
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
       this.toggleLeafletViewType();
-    } else if (this.providerType === MapProviderType.MAPBOX) {
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
       this.toggleMapboxViewType();
     }
   }
 
   private toggleLeafletViewType(): void {
+    if (!(this.map instanceof L.Map)) return;
+
     const leafletMap = this.map as LeafletMap;
 
     leafletMap.eachLayer((layer) => {
@@ -179,7 +216,6 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       }
     });
 
-
     const tileLayer = this.tileLayers[this.currentViewType];
     L.tileLayer(tileLayer.url, {
       attribution: tileLayer.attribution
@@ -187,17 +223,59 @@ export class MapControlsComponent implements OnInit, OnDestroy {
   }
 
   private toggleMapboxViewType(): void {
+    if (!(this.map instanceof mapboxgl.Map)) return;
+
     const mapboxMap = this.map as mapboxgl.Map;
 
-    let styleUrl = 'mapbox://styles/mapbox/streets-v11';
 
-    if (this.currentViewType === MapViewType.SATELLITE) {
-      styleUrl = 'mapbox://styles/mapbox/satellite-v9';
-    } else if (this.currentViewType === MapViewType.GOOGLE) {
-      styleUrl = 'mapbox://styles/mapbox/navigation-day-v1';
+    const mapboxStyles = {
+      [MapViewType.DEFAULT]: 'mapbox://styles/mapbox/streets-v11',
+      [MapViewType.SATELLITE]: 'mapbox://styles/mapbox/satellite-v9',
+      [MapViewType.GOOGLE]: 'mapbox://styles/mapbox/navigation-day-v1'
+    };
+
+    const styleUrl = mapboxStyles[this.currentViewType];
+
+    // Sauvegarder le centre et le zoom actuels
+    const currentCenter = mapboxMap.getCenter();
+    const currentZoom = mapboxMap.getZoom();
+
+    // Sauvegarder l'état du marqueur de localisation
+    const isLocating = this.isLocating;
+
+    // Appliquer le nouveau style
+    mapboxMap.setStyle(styleUrl);
+
+    // Après le chargement du style, restaurer la position et le zoom
+    mapboxMap.once('style.load', () => {
+      // Restaurer le centre et le zoom
+      mapboxMap.setCenter(currentCenter);
+      mapboxMap.setZoom(currentZoom);
+
+      // Redémarrer la localisation si elle était active
+      if (isLocating && !this.locationMarker) {
+        // Attendre un court instant pour que la carte soit complètement chargée
+        setTimeout(() => {
+          this.startMapboxGeolocation();
+        }, 200);
+      }
+
+      console.log(`Type de vue Mapbox changé pour: ${this.currentViewType}`);
+    });
+  }
+
+  // Ajouter une méthode pour mettre à jour le type de vue après un changement de fournisseur
+  private resetViewTypeForProvider(): void {
+    // Réinitialiser à la vue par défaut
+    this.currentViewType = MapViewType.DEFAULT;
+
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
+      this.toggleLeafletViewType();
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
+      this.toggleMapboxViewType();
     }
 
-    mapboxMap.setStyle(styleUrl);
+    console.log(`Type de vue réinitialisé à DEFAULT pour le fournisseur: ${this.providerType}`);
   }
 
   locateUser(): void {
@@ -207,238 +285,37 @@ export class MapControlsComponent implements OnInit, OnDestroy {
     this.cleanupLocationResources();
 
     if (this.isLocating) {
-      if (this.providerType === MapProviderType.LEAFLET) {
-        this.startLeafletLocation();
-      } else {
-        this.startUnifiedGeolocation();
-      }
+      this.startGeolocation();
     }
   }
 
-  private startUnifiedGeolocation(): void {
-    if (!navigator.geolocation) {
-      alert("La géolocalisation n'est pas supportée par votre navigateur.");
+  private startGeolocation(): void {
+    if (!this.map) {
+      console.error('La carte n\'est pas initialisée');
       this.isLocating = false;
       return;
     }
 
-    const mapElement = this.providerType === MapProviderType.LEAFLET
-      ? (this.map as LeafletMap).getContainer()
-      : (this.map as mapboxgl.Map).getContainer();
-
-    const loadingDiv = document.createElement('div');
-    loadingDiv.className = 'location-loading-indicator';
-    loadingDiv.innerHTML = '<div class="spinner"></div>';
-    mapElement.appendChild(loadingDiv);
-
-    let watchId: number;
-
-    const geoOptions = {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 0
-    };
-
-    const onSuccess = (position: GeolocationPosition) => {
-      document.querySelector('.location-loading-indicator')?.remove();
-
-      const latitude = position.coords.latitude;
-      const longitude = position.coords.longitude;
-      const accuracy = position.coords.accuracy;
-
-      if (this.providerType === MapProviderType.LEAFLET) {
-        this.displayLocationOnLeaflet(latitude, longitude, accuracy);
-      } else {
-        this.displayLocationOnMapbox(longitude, latitude, accuracy);
-      }
-
-      if (this.providerType === MapProviderType.LEAFLET) {
-        this.locationFound.emit({
-          latlng: L.latLng(latitude, longitude),
-          accuracy: accuracy
-        });
-      } else {
-        this.locationFound.emit({
-          latlng: [latitude, longitude],
-          accuracy: accuracy
-        });
-      }
-    };
-
-    const onError = (error: GeolocationPositionError) => {
-      document.querySelector('.location-loading-indicator')?.remove();
-      console.error('Erreur de géolocalisation:', error);
-      this.isLocating = false;
-      this.locationError.emit(error);
-      this.showLocationError(error.code, error.message);
-    };
-
-    watchId = navigator.geolocation.watchPosition(onSuccess, onError, geoOptions);
-
-    (this as any).geolocationWatchId = watchId;
-  }
-
-  private displayLocationOnLeaflet(latitude: number, longitude: number, accuracy: number): void {
-    const leafletMap = this.map as LeafletMap;
-    const latlng = L.latLng(latitude, longitude);
-
-    if (this.locationMarker) {
-      (this.locationMarker as L.Marker).remove();
-    }
-
-    if (this.locationCircle) {
-      this.locationCircle.remove();
-    }
-
-    this.locationMarker = L.marker(latlng, {
-      icon: L.divIcon({
-        className: 'user-location-marker',
-        html: '<div class="location-marker-inner"></div>',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
-      })
-    }).addTo(leafletMap);
-
-    this.locationCircle = L.circle(latlng, {
-      radius: accuracy,
-      color: '#2196F3',
-      fillColor: '#2196F3',
-      fillOpacity: 0.15,
-      weight: 2
-    }).addTo(leafletMap);
-
-    if (!(this as any).locationFirstFound) {
-      leafletMap.setView(latlng, 16);
-      (this as any).locationFirstFound = true;
-    }
-  }
-
-  private displayLocationOnMapbox(longitude: number, latitude: number, accuracy: number): void {
-    const mapboxMap = this.map as mapboxgl.Map;
-
-    if (this.locationMarker) {
-      (this.locationMarker as mapboxgl.Marker).remove();
-    }
-
-    const el = document.createElement('div');
-    el.className = 'user-location-marker';
-    el.innerHTML = '<div class="location-marker-inner"></div>';
-
-    this.locationMarker = new mapboxgl.Marker({ element: el })
-      .setLngLat([longitude, latitude])
-      .addTo(mapboxMap);
-
-    const circleGeoJson = {
-      type: 'FeatureCollection',
-      features: [{
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [longitude, latitude]
-        },
-        properties: {
-          radius: accuracy
-        }
-      }]
-    };
-
-    if (mapboxMap.getSource(this.locationGeoJSONSource)) {
-      (mapboxMap.getSource(this.locationGeoJSONSource) as mapboxgl.GeoJSONSource).setData(circleGeoJson as any);
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
+      this.startLeafletGeolocation();
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
+      this.startMapboxGeolocation();
     } else {
-      mapboxMap.addSource(this.locationGeoJSONSource, {
-        type: 'geojson',
-        data: circleGeoJson as any
-      });
-
-      mapboxMap.addLayer({
-        id: 'accuracy-circle-layer',
-        source: this.locationGeoJSONSource,
-        type: 'circle',
-        paint: {
-          'circle-radius': ['get', 'radius'],
-          'circle-color': '#2196F3',
-          'circle-opacity': 0.15,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#2196F3'
-        }
-      });
-    }
-
-    if (!(this as any).locationFirstFound) {
-      mapboxMap.flyTo({
-        center: [longitude, latitude],
-        zoom: 16
-      });
-      (this as any).locationFirstFound = true;
+      // Utiliser l'API de géolocalisation du navigateur comme fallback
+      this.startBrowserGeolocation();
     }
   }
 
-  private createLocationMarkerElement(): HTMLElement {
-    const el = document.createElement('div');
-    el.className = 'user-location-marker';
+  private startLeafletGeolocation(): void {
+    if (!(this.map instanceof L.Map)) return;
 
-    const inner = document.createElement('div');
-    inner.className = 'location-marker-inner';
-    el.appendChild(inner);
-
-    return el;
-  }
-
-  private onLeafletLocationError(e: L.ErrorEvent): void {
-    console.error('Erreur de localisation Leaflet:', e.message);
-    this.isLocating = false;
-
-    this.locationError.emit(e);
-
-    this.showLocationError(e.code, e.message);
-  }
-
-  private onMapboxLocationError(e: any): void {
-    console.error('Erreur de localisation Mapbox:', e);
-    this.isLocating = false;
-
-    this.locationError.emit(e);
-
-    let errorCode = 0;
-    let errorMessage = e.message || 'Erreur inconnue';
-
-    if (errorMessage.includes('denied') || errorMessage.includes('permission')) {
-      errorCode = 1;
-    } else if (errorMessage.includes('unavailable') || errorMessage.includes('indisponible')) {
-      errorCode = 2;
-    } else if (errorMessage.includes('timeout') || errorMessage.includes('expir')) {
-      errorCode = 3;
-    }
-
-    this.showLocationError(errorCode, errorMessage);
-  }
-
-  private showLocationError(code: number, defaultMessage: string): void {
-    let message = "Impossible de déterminer votre position: ";
-    switch (code) {
-      case 1:
-        message += "Accès refusé. Veuillez autoriser l'accès à votre position dans les paramètres du navigateur.";
-        break;
-      case 2:
-        message += "Position indisponible. Vérifiez que votre GPS est activé.";
-        break;
-      case 3:
-        message += "Timeout expiré. Veuillez réessayer.";
-        break;
-      default:
-        message += defaultMessage;
-    }
-    alert(message);
-  }
-
-  private startLeafletLocation(): void {
     const leafletMap = this.map as LeafletMap;
 
     try {
       leafletMap.locate({
         watch: true,
         setView: true,
-        maxZoom: 15,
+        maxZoom: 16,
         enableHighAccuracy: true,
         timeout: 10000
       });
@@ -447,7 +324,7 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       leafletMap.off('locationerror');
 
       leafletMap.on('locationfound', (e: L.LocationEvent) => {
-        console.log('Position trouvée:', e.latlng);
+        console.log('Position trouvée (Leaflet):', e.latlng);
 
         if (this.locationMarker) {
           (this.locationMarker as L.Marker).remove();
@@ -474,6 +351,8 @@ export class MapControlsComponent implements OnInit, OnDestroy {
           weight: 2
         }).addTo(leafletMap);
 
+        this.locationFirstFound = true;
+
         this.locationFound.emit({
           latlng: e.latlng,
           accuracy: e.accuracy
@@ -492,5 +371,369 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       this.isLocating = false;
       this.showLocationError(0, 'Erreur lors de l\'initialisation de la localisation');
     }
+  }
+
+  private startMapboxGeolocation(): void {
+    if (!(this.map instanceof mapboxgl.Map)) return;
+
+    const mapboxMap = this.map as mapboxgl.Map;
+
+    try {
+      // Vérifier si la carte est complètement chargée
+      if (!mapboxMap.loaded()) {
+        console.log('Carte Mapbox non encore chargée, attente...');
+        // Attendre que la carte soit chargée avant d'ajouter le contrôle
+        const waitForMapLoad = () => {
+          setTimeout(() => {
+            if (mapboxMap.loaded()) {
+              this.initMapboxGeolocateControl(mapboxMap);
+            } else if (this.isLocating) {
+              waitForMapLoad();
+            }
+          }, 200);
+        };
+        waitForMapLoad();
+        return;
+      }
+
+      this.initMapboxGeolocateControl(mapboxMap);
+    } catch (err) {
+      console.error('Erreur lors de l\'initialisation de la localisation Mapbox:', err);
+      this.isLocating = false;
+      this.showLocationError(0, 'Erreur lors de l\'initialisation de la localisation');
+
+      // Fallback sur la géolocalisation du navigateur
+      this.startBrowserGeolocation();
+    }
+  }
+
+  /**
+   * Initialise le contrôle de géolocalisation Mapbox
+   */
+  private initMapboxGeolocateControl(mapboxMap: mapboxgl.Map): void {
+    // Supprimer d'abord tout contrôle existant
+    if (this.geolocateControl) {
+      try {
+        mapboxMap.removeControl(this.geolocateControl);
+      } catch (error) {
+        console.warn('Impossible de supprimer le contrôle précédent:', error);
+      }
+      this.geolocateControl = null;
+    }
+
+    // Créer un nouveau contrôle de géolocalisation
+    this.geolocateControl = new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true
+      },
+      trackUserLocation: true,
+      showAccuracyCircle: false, // Désactiver le cercle natif car nous utilisons notre propre cercle
+      showUserLocation: true
+    });
+
+    // Ajouter le contrôle à la carte
+    mapboxMap.addControl(this.geolocateControl);
+
+    // Écouter les événements du contrôle
+    this.geolocateControl.on('geolocate', (position: GeolocationPosition) => {
+      const lat = position.coords.latitude;
+      const lng = position.coords.longitude;
+      const accuracy = position.coords.accuracy;
+
+      console.log('Position trouvée (Mapbox):', [lat, lng]);
+
+      // Afficher notre propre cercle d'exactitude
+      this.displayLocationOnMapbox(lng, lat, accuracy);
+
+      // Émettre l'événement pour notifier les composants parents
+      this.locationFound.emit({
+        latlng: [lat, lng],
+        accuracy: accuracy
+      });
+    });
+
+    this.geolocateControl.on('error', (err: any) => {
+      console.error('Erreur de localisation Mapbox:', err);
+      this.isLocating = false;
+      this.locationError.emit(err);
+
+      this.showLocationError(0, err.message || 'Erreur de géolocalisation');
+
+      // Si l'erreur est liée aux permissions ou à la disponibilité, essayer la méthode de fallback
+      if (err.code === 1 || err.code === 2) {
+        this.startBrowserGeolocation();
+      }
+    });
+
+    // Écouter les changements de style de carte
+    mapboxMap.on('style.load', () => {
+      if (this.isLocating && this.geolocateControl) {
+        console.log('Style de carte changé, réactivation de la géolocalisation...');
+        setTimeout(() => {
+          if (this.geolocateControl) {
+            try {
+              this.geolocateControl.trigger();
+            } catch (error) {
+              console.warn('Erreur lors de la réactivation de la géolocalisation après changement de style:', error);
+            }
+          }
+        }, 300);
+      }
+    });
+
+    // Déclencher la géolocalisation
+    setTimeout(() => {
+      if (this.geolocateControl && this.isLocating) {
+        try {
+          this.geolocateControl.trigger();
+        } catch (error) {
+          console.error('Erreur lors du déclenchement de la géolocalisation Mapbox:', error);
+          this.startBrowserGeolocation();
+        }
+      }
+    }, 500);
+  }
+
+  private startBrowserGeolocation(): void {
+    if (!navigator.geolocation) {
+      alert("La géolocalisation n'est pas supportée par votre navigateur.");
+      this.isLocating = false;
+      return;
+    }
+
+    const mapElement = this.map instanceof L.Map
+      ? (this.map as LeafletMap).getContainer()
+      : (this.map as mapboxgl.Map).getContainer();
+
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'location-loading-indicator';
+    loadingDiv.innerHTML = '<div class="spinner"></div>';
+    mapElement.appendChild(loadingDiv);
+
+    const geoOptions = {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 0
+    };
+
+    const onSuccess = (position: GeolocationPosition) => {
+      document.querySelector('.location-loading-indicator')?.remove();
+
+      const latitude = position.coords.latitude;
+      const longitude = position.coords.longitude;
+      const accuracy = position.coords.accuracy;
+
+      console.log(`Position trouvée (navigateur): ${latitude}, ${longitude}`);
+
+      // Centrer la carte sur la position dès la première localisation
+      const shouldCenterMap = !this.locationFirstFound;
+
+      if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
+        this.displayLocationOnLeaflet(latitude, longitude, accuracy);
+        if (shouldCenterMap) {
+          (this.map as LeafletMap).setView([latitude, longitude], 16);
+        }
+      } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
+        this.displayLocationOnMapbox(longitude, latitude, accuracy);
+        if (shouldCenterMap) {
+          (this.map as mapboxgl.Map).flyTo({
+            center: [longitude, latitude],
+            zoom: 16
+          });
+        }
+      }
+
+      // Marquer comme trouvé après le premier centrage
+      this.locationFirstFound = true;
+
+      // Émettre l'événement pour les composants parents
+      this.locationFound.emit({
+        latlng: this.providerType === MapProviderType.LEAFLET ? L.latLng(latitude, longitude) : [latitude, longitude],
+        accuracy: accuracy
+      });
+    };
+
+    const onError = (error: GeolocationPositionError) => {
+      document.querySelector('.location-loading-indicator')?.remove();
+      console.error('Erreur de géolocalisation du navigateur:', error.message);
+      this.isLocating = false;
+
+      this.locationError.emit(error);
+      this.showLocationError(error.code, error.message);
+    };
+
+    // Utiliser watchPosition au lieu de getCurrentPosition pour suivre les changements de position
+    this.geolocationWatchId = navigator.geolocation.watchPosition(onSuccess, onError, geoOptions);
+  }
+
+  private displayLocationOnLeaflet(latitude: number, longitude: number, accuracy: number): void {
+    if (!(this.map instanceof L.Map)) return;
+
+    const leafletMap = this.map as LeafletMap;
+    const latlng = L.latLng(latitude, longitude);
+
+    if (this.locationMarker) {
+      (this.locationMarker as L.Marker).remove();
+    }
+
+    this.locationMarker = L.marker(latlng, {
+      icon: L.divIcon({
+        className: 'user-location-marker',
+        html: '<div class="location-marker-inner"></div>',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+      })
+    }).addTo(leafletMap);
+
+    if (this.locationCircle) {
+      this.locationCircle.remove();
+    }
+
+    this.locationCircle = L.circle(latlng, {
+      radius: accuracy,
+      color: '#2196F3',
+      fillColor: '#2196F3',
+      fillOpacity: 0.15,
+      weight: 2
+    }).addTo(leafletMap);
+
+    // Le centrage est géré par la méthode appelante (startLeafletGeolocation ou startBrowserGeolocation)
+  }
+
+  private displayLocationOnMapbox(longitude: number, latitude: number, accuracy: number): void {
+    if (!(this.map instanceof mapboxgl.Map)) return;
+
+    const mapboxMap = this.map as mapboxgl.Map;
+
+    if (this.locationMarker) {
+      (this.locationMarker as mapboxgl.Marker).remove();
+    }
+
+    const el = document.createElement('div');
+    el.className = 'user-location-marker';
+    el.innerHTML = '<div class="location-marker-inner"></div>';
+
+    this.locationMarker = new mapboxgl.Marker({ element: el })
+      .setLngLat([longitude, latitude])
+      .addTo(mapboxMap);
+
+    // Convertir le rayon en mètres vers des pixels
+    // Cette formule tient compte du niveau de zoom et de la latitude
+    const pixelsPerMeter = this.metersToPixelsAtLatitude(accuracy, latitude, mapboxMap.getZoom());
+
+    const circleGeoJson = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [longitude, latitude]
+        },
+        properties: {
+          radius_meters: accuracy,
+          radius_pixels: pixelsPerMeter
+        }
+      }]
+    };
+
+    if (mapboxMap.getSource(this.locationGeoJSONSource)) {
+      (mapboxMap.getSource(this.locationGeoJSONSource) as mapboxgl.GeoJSONSource).setData(circleGeoJson as any);
+    } else {
+      try {
+        mapboxMap.addSource(this.locationGeoJSONSource, {
+          type: 'geojson',
+          data: circleGeoJson as any
+        });
+
+        mapboxMap.addLayer({
+          id: 'accuracy-circle-layer',
+          source: this.locationGeoJSONSource,
+          type: 'circle',
+          paint: {
+            // Utiliser la propriété radius_pixels calculée au lieu de radius_meters
+            'circle-radius': ['get', 'radius_pixels'],
+            'circle-color': '#2196F3',
+            'circle-opacity': 0.15,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#2196F3'
+          }
+        });
+
+        // Mettre à jour le rayon lors du zoom
+        mapboxMap.on('zoom', () => {
+          if (this.isLocating && this.locationMarker) {
+            const position = (this.locationMarker as mapboxgl.Marker).getLngLat();
+            const radiusMeters = circleGeoJson.features[0].properties.radius_meters;
+            const newPixels = this.metersToPixelsAtLatitude(
+              radiusMeters,
+              position.lat,
+              mapboxMap.getZoom()
+            );
+
+            // Mettre à jour la propriété radius_pixels
+            circleGeoJson.features[0].properties.radius_pixels = newPixels;
+
+            // Mettre à jour la source
+            if (mapboxMap.getSource(this.locationGeoJSONSource)) {
+              (mapboxMap.getSource(this.locationGeoJSONSource) as mapboxgl.GeoJSONSource)
+                .setData(circleGeoJson as any);
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout de la couche de précision:', error);
+      }
+    }
+
+    // Le centrage est géré par la méthode appelante (startMapboxGeolocation ou startBrowserGeolocation)
+  }
+
+  /**
+   * Convertit une distance en mètres en pixels à une latitude et un niveau de zoom donnés
+   * @param meters Distance en mètres
+   * @param latitude Latitude où mesurer
+   * @param zoom Niveau de zoom actuel
+   * @returns Rayon en pixels
+   */
+  private metersToPixelsAtLatitude(meters: number, latitude: number, zoom: number): number {
+    // Rayon de la Terre en mètres
+    const earthRadius = 6378137;
+
+    // Largeur d'un pixel au zoom 0 en mètres
+    const meterPerPixelAtZoom0 = 2 * Math.PI * earthRadius / 512;
+
+    // Facteur d'échelle en fonction du zoom
+    const zoomScale = Math.pow(2, zoom);
+
+    // Ajustement pour la projection Mercator (dépend de la latitude)
+    const latitudeRadians = latitude * Math.PI / 180;
+    const latitudeAdjustment = Math.cos(latitudeRadians);
+
+    // Conversion finale: mètres -> pixels
+    // Pour éviter des cercles trop grands, on limite à 50 pixels maximum
+    const pixelRadius = Math.min(
+      meters / (meterPerPixelAtZoom0 / zoomScale) / latitudeAdjustment,
+      50
+    );
+
+    return pixelRadius;
+  }
+
+  private showLocationError(code: number, defaultMessage: string): void {
+    let message = "Impossible de déterminer votre position: ";
+    switch (code) {
+      case 1:
+        message += "Accès refusé. Veuillez autoriser l'accès à votre position dans les paramètres du navigateur.";
+        break;
+      case 2:
+        message += "Position indisponible. Vérifiez que votre GPS est activé.";
+        break;
+      case 3:
+        message += "Timeout expiré. Veuillez réessayer.";
+        break;
+      default:
+        message += defaultMessage;
+    }
+    alert(message);
   }
 }
