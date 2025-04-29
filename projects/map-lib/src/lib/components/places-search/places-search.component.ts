@@ -1,12 +1,12 @@
 import { Component, OnInit, OnDestroy, Input, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PlacesService, Place, MAPBOX_ACCESS_TOKEN } from '../../services/places.service';
+import { PlacesService, Place, MAPBOX_ACCESS_TOKEN, PlaceSuggestion } from '../../services/places.service';
 import { MapService } from '../../services/map.service';
 import * as L from 'leaflet';
 import { MapProviderType } from '../../models/map-provider.model';
 import mapboxgl from 'mapbox-gl';
-import { Subscription } from 'rxjs';
+import { Subscription, Subject, debounceTime, distinctUntilChanged, switchMap, tap, of } from 'rxjs';
 import { Inject, Optional } from '@angular/core';
 import { MapConfigService } from '../../services/map-config.service';
 
@@ -14,65 +14,136 @@ import { MapConfigService } from '../../services/map-config.service';
   selector: 'lib-places-search',
   template: `
     <div class="places-search-container">
-      <div class="places-search-card">
-        <h3>Points d'intérêt</h3>
+      <div class="places-search-card" [class.expanded]="showFullPanel">
+        <div class="card-header" (click)="togglePanel()">
+          <h3>
+            <i class="fas fa-map-marker-alt"></i>
+            Points d'intérêt
+          </h3>
+          <button class="toggle-button">
+            <i class="fas" [ngClass]="showFullPanel ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+          </button>
+        </div>
 
-        <div class="search-controls">
-          <div class="search-input">
-            <input type="text" [(ngModel)]="searchQuery" placeholder="Rechercher un type de lieu..."
-                   (keyup.enter)="searchPlaces()">
-            <button (click)="searchPlaces()">
+        <div class="card-content" *ngIf="showFullPanel">
+          <div class="search-controls">
+            <div class="search-wrapper">
+              <div class="search-input">
+                <i class="fas fa-search search-icon"></i>
+                <input
+                  type="text"
+                  [(ngModel)]="searchQuery"
+                  placeholder="Rechercher un lieu..."
+                  (keyup)="onSearchKeyUp($event)"
+                  (focus)="showSuggestions = true"
+                >
+                <button class="clear-button" *ngIf="searchQuery" (click)="clearSearch()">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+
+              <ng-container *ngIf="showSuggestions && suggestions.length > 0">
+                <div class="suggestion-item"
+                    *ngFor="let suggestion of suggestions"
+                    (click)="selectSuggestion(suggestion)"
+                    [class.active]="suggestion === activeSuggestion">
+                  <i class="fas fa-map-marker-alt suggestion-icon"></i>
+                  <div class="suggestion-content">
+                    <div class="suggestion-name">{{ suggestion.name }}</div>
+                    <div class="suggestion-description" *ngIf="suggestion.description">{{ suggestion.description }}</div>
+                  </div>
+                </div>
+              </ng-container>
+            </div>
+
+            <div class="filter-controls">
+              <div class="search-option">
+                <label class="checkbox-container">
+                  <input type="checkbox" [(ngModel)]="autoSearch" (change)="onAutoSearchChange()">
+                  <span class="checkmark"></span>
+                  <span class="label-text">Recherche automatique</span>
+                </label>
+              </div>
+
+              <div class="radius-control" *ngIf="autoSearch">
+                <label class="radius-label">Rayon: {{ searchRadius }}m</label>
+                <div class="slider-container">
+                  <input
+                    type="range"
+                    min="100"
+                    max="5000"
+                    step="100"
+                    [(ngModel)]="searchRadius"
+                    (change)="onRadiusChange()"
+                    class="slider"
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Indicateur de chargement -->
+          <div class="loading-indicator" *ngIf="loading">
+            <div class="spinner">
+              <i class="fas fa-circle-notch fa-spin"></i>
+            </div>
+            <p>Recherche en cours...</p>
+          </div>
+
+          <!-- Message pour aucun résultat -->
+          <div class="no-results-message" *ngIf="searched && places.length === 0 && !loading">
+            <div class="message-content">
               <i class="fas fa-search"></i>
-            </button>
-          </div>
-
-          <div class="search-options">
-            <label>
-              <input type="checkbox" [(ngModel)]="autoSearch" (change)="onAutoSearchChange()">
-              Recherche automatique
-            </label>
-            <div class="radius-control" *ngIf="autoSearch">
-              <label>Rayon (m):</label>
-              <input type="range" min="100" max="5000" step="100" [(ngModel)]="searchRadius"
-                     (change)="onRadiusChange()">
-              <span>{{ searchRadius }}m</span>
+              <p>Aucun point d'intérêt trouvé</p>
             </div>
           </div>
-        </div>
 
-        <div *ngIf="debugInfo" class="debug-info">
-          <p><strong>Mode de carte:</strong> {{ providerType }}</p>
-          <p><strong>Token Mapbox:</strong> {{ mapboxTokenAvailable ? "Disponible" : "Non disponible" }}</p>
-          <button (click)="toggleDebug()">Masquer</button>
-        </div>
+          <!-- Message d'erreur -->
+          <div class="error-message" *ngIf="errorMessage && !loading">
+            <div class="message-content">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>{{ errorMessage }}</p>
+              <button class="debug-button" (click)="toggleDebug()">Infos de débogage</button>
+            </div>
+          </div>
 
-        <div class="places-list" *ngIf="places.length > 0">
-          <div class="place-item" *ngFor="let place of places" (click)="selectPlace(place)">
-            <i class="fas" [ngClass]="getIconClass(place.type)"></i>
-            <div class="place-info">
-              <div class="place-name">{{ place.name }}</div>
-              <div class="place-address" *ngIf="place.address">{{ place.address }}</div>
-              <div class="place-rating" *ngIf="place.rating">
-                <i class="fas fa-star"></i> {{ place.rating }}
+          <!-- Informations de débogage -->
+          <div *ngIf="debugInfo" class="debug-info">
+            <div class="debug-header">
+              <h4>Informations de débogage</h4>
+              <button class="close-button" (click)="toggleDebug()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <p><strong>Mode de carte:</strong> {{ providerType }}</p>
+            <p><strong>Token Mapbox:</strong> {{ mapboxTokenAvailable ? "Disponible" : "Non disponible" }}</p>
+          </div>
+
+          <!-- Liste des lieux trouvés -->
+          <div class="places-results" *ngIf="places.length > 0 && !loading">
+            <div class="place-item"
+                  *ngFor="let place of places"
+                  (click)="selectPlace(place)"
+                  [class.selected]="selectedPlace === place">
+              <div class="place-icon">
+                <i class="fas" [ngClass]="getIconClass(place.type)"></i>
               </div>
-              <div class="place-plus-code" *ngIf="place.plusCode">
-                <i class="fas fa-map-marker-alt"></i> {{ place.plusCode }}
+              <div class="place-info">
+                <div class="place-name">{{ place.name }}</div>
+                <div class="place-details">
+                  <div class="place-address" *ngIf="place.address">
+                    <i class="fas fa-map-signs"></i> {{ place.address }}
+                  </div>
+                  <div class="place-rating" *ngIf="place.rating">
+                    <i class="fas fa-star"></i> {{ place.rating }}
+                  </div>
+                  <div class="place-plus-code" *ngIf="place.plusCode">
+                    <i class="fas fa-location-arrow"></i> {{ place.plusCode }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-
-        <div class="no-results" *ngIf="searched && places.length === 0">
-          Aucun point d'intérêt trouvé.
-        </div>
-
-        <div class="search-error" *ngIf="errorMessage">
-          <p><i class="fas fa-exclamation-triangle"></i> {{ errorMessage }}</p>
-          <button (click)="toggleDebug()">Infos de débogage</button>
-        </div>
-
-        <div class="loading" *ngIf="loading">
-          <i class="fas fa-spinner fa-spin"></i> Recherche en cours...
         </div>
       </div>
     </div>
@@ -83,158 +154,483 @@ import { MapConfigService } from '../../services/map-config.service';
       top: 20px;
       left: 20px;
       z-index: 1000;
-      max-width: 300px;
-      width: 100%;
+      width: 350px;
+      max-width: calc(100% - 40px);
+      transition: all 0.3s ease;
     }
 
     .places-search-card {
       background-color: white;
       border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-      padding: 15px;
-      max-height: 80vh;
-      overflow-y: auto;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+      transition: all 0.3s ease;
     }
 
-    h3 {
-      margin: 0 0 15px 0;
+    .places-search-card.expanded {
+      max-height: 80vh;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px;
+      background-color: white;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+    }
+
+    .card-header h3 {
+      margin: 0;
       color: #333;
       font-size: 16px;
       font-weight: 500;
+      display: flex;
+      align-items: center;
+    }
+
+    .card-header h3 i {
+      margin-right: 8px;
+      color: #2196F3;
+    }
+
+    .toggle-button {
+      background: none;
+      border: none;
+      color: #777;
+      cursor: pointer;
+      padding: 5px;
+      transition: color 0.2s;
+    }
+
+    .toggle-button:hover {
+      color: #333;
+    }
+
+    .card-content {
+      padding: 15px;
+      overflow: visible;
+      max-height: calc(80vh - 60px);
     }
 
     .search-controls {
       margin-bottom: 15px;
     }
 
+    .search-wrapper {
+      position: relative;
+      margin-bottom: 15px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
     .search-input {
       display: flex;
-      margin-bottom: 10px;
+      align-items: center;
+      position: relative;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+    }
+
+    .search-input:focus-within {
+      background-color: white;
+      border-color: #2196F3;
+      box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
+    }
+
+    .search-icon {
+      color: #777;
+      margin-left: 12px;
     }
 
     .search-input input {
       flex: 1;
-      padding: 8px 12px;
-      border: 1px solid #ddd;
-      border-radius: 4px 0 0 4px;
-      font-size: 14px;
-    }
-
-    .search-input button {
-      background-color: #2196F3;
-      color: white;
       border: none;
-      border-radius: 0 4px 4px 0;
+      background: transparent;
+      padding: 12px 10px 12px 10px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search-input input::placeholder {
+      color: #999;
+    }
+
+    .clear-button {
+      background: none;
+      border: none;
+      color: #999;
+      cursor: pointer;
       padding: 0 12px;
-      cursor: pointer;
+      height: 100%;
+      transition: color 0.2s;
     }
 
-    .search-options {
-      font-size: 13px;
+    .clear-button:hover {
+      color: #f44336;
     }
 
-    .radius-control {
-      margin-top: 8px;
+    .suggestion-item {
       display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .radius-control input[type="range"] {
-      flex: 1;
-    }
-
-    .places-list {
-      max-height: 300px;
-      overflow-y: auto;
-    }
-
-    .place-item {
-      display: flex;
-      padding: 10px;
-      border-bottom: 1px solid #eee;
+      align-items: flex-start;
+      padding: 10px 15px;
       cursor: pointer;
+      border-bottom: 1px solid #f0f0f0;
       transition: background-color 0.2s;
     }
 
-    .place-item:hover {
-      background-color: #f5f5f5;
+    .suggestion-item:last-child {
+      border-bottom: none;
+      border-radius: 0 0 8px 8px;
     }
 
-    .place-item i {
-      font-size: 18px;
+    .suggestion-item:hover,
+    .suggestion-item.active {
+      background-color: #f0f7ff;
+    }
+
+    .suggestion-icon {
+      color: #2196F3;
       margin-right: 10px;
-      color: #666;
-      width: 20px;
-      text-align: center;
+      margin-top: 3px;
     }
 
-    .place-info {
+    .suggestion-content {
       flex: 1;
     }
 
-    .place-name {
+    .suggestion-name {
       font-weight: 500;
       margin-bottom: 2px;
     }
 
-    .place-address {
+    .suggestion-description {
       font-size: 12px;
       color: #666;
     }
 
-    .place-rating {
-      font-size: 12px;
-      color: #f39c12;
-      margin-top: 2px;
+    .filter-controls {
+      margin-top: 15px;
     }
 
-    .place-plus-code {
-      font-size: 12px;
-      color: #666;
-      margin-top: 2px;
+    .search-option {
+      margin-bottom: 10px;
     }
 
-    .no-results, .loading {
-      text-align: center;
-      padding: 15px;
-      color: #666;
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      position: relative;
+      padding-left: 30px;
+      cursor: pointer;
+      font-size: 14px;
+      user-select: none;
+    }
+
+    .checkbox-container input {
+      position: absolute;
+      opacity: 0;
+      cursor: pointer;
+      height: 0;
+      width: 0;
+    }
+
+    .checkmark {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 20px;
+      width: 20px;
+      background-color: #f0f0f0;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .checkbox-container:hover input ~ .checkmark {
+      background-color: #e0e0e0;
+    }
+
+    .checkbox-container input:checked ~ .checkmark {
+      background-color: #2196F3;
+    }
+
+    .checkmark:after {
+      content: "";
+      position: absolute;
+      display: none;
+    }
+
+    .checkbox-container input:checked ~ .checkmark:after {
+      display: block;
+    }
+
+    .checkbox-container .checkmark:after {
+      left: 7px;
+      top: 3px;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    .label-text {
+      color: #555;
+    }
+
+    .radius-control {
+      background-color: #f5f5f5;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+
+    .radius-label {
+      display: block;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .slider-container {
+      padding: 0 5px;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 5px;
+      border-radius: 5px;
+      background: #ddd;
+      outline: none;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #2196F3;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #2196F3;
+      cursor: pointer;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s;
+      border: none;
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    /* Styles pour l'indicateur de chargement */
+    .loading-indicator {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 30px 0;
+      color: #555;
+    }
+
+    .spinner {
+      font-size: 24px;
+      color: #2196F3;
+      margin-bottom: 10px;
+    }
+
+    .loading-indicator p {
+      margin: 0;
       font-size: 14px;
     }
 
-    .loading i {
-      margin-right: 8px;
+    /* Style pour les messages (pas de résultats, erreur) */
+    .no-results-message,
+    .error-message {
+      padding: 20px 0;
+    }
+
+    .message-content {
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .message-content i {
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #999;
+    }
+
+    .error-message .message-content i {
+      color: #f44336;
+    }
+
+    .message-content p {
+      margin: 0 0 10px 0;
+      color: #555;
+    }
+
+    .debug-button {
+      background-color: #f0f0f0;
+      border: none;
+      border-radius: 4px;
+      padding: 6px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 5px;
+    }
+
+    .debug-button:hover {
+      background-color: #e0e0e0;
     }
 
     .debug-info {
       background-color: #f9f9f9;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 10px;
+      border-radius: 8px;
+      padding: 12px;
+      margin-top: 15px;
       margin-bottom: 15px;
       font-size: 12px;
+      border: 1px solid #e0e0e0;
     }
 
-    .search-error {
-      background-color: #ffeaea;
-      border: 1px solid #ffcaca;
-      border-radius: 4px;
-      padding: 10px;
-      margin-bottom: 15px;
-      color: #d33;
-      font-size: 13px;
+    .debug-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .debug-header h4 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .close-button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: #999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2px;
+    }
+
+    .close-button:hover {
+      color: #333;
+    }
+
+    /* Style pour la liste des résultats */
+    .places-results {
+      margin-top: 15px;
+      border-radius: 8px;
+      background-color: white;
+      overflow: visible;
+    }
+
+    .place-item {
+      display: flex;
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .place-item:last-child {
+      border-bottom: none;
+    }
+
+    .place-item:hover {
+      background-color: #f0f7ff;
+    }
+
+    .place-item.selected {
+      background-color: #e3f2fd;
+      border-left: 3px solid #2196F3;
+    }
+
+    .place-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #f0f7ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 12px;
+      flex-shrink: 0;
+    }
+
+    .place-icon i {
+      font-size: 18px;
+      color: #2196F3;
+    }
+
+    .place-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .place-name {
+      font-weight: 500;
+      margin-bottom: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #333;
+    }
+
+    .place-details {
+      font-size: 12px;
+      color: #666;
+    }
+
+    .place-address, .place-rating, .place-plus-code {
+      margin-bottom: 2px;
+      display: flex;
+      align-items: center;
+    }
+
+    .place-address i, .place-rating i, .place-plus-code i {
+      margin-right: 5px;
+      width: 14px;
       text-align: center;
     }
 
-    .search-error button,
-    .debug-info button {
-      background-color: #f0f0f0;
-      border: 1px solid #ddd;
-      border-radius: 4px;
-      padding: 3px 8px;
-      margin-top: 5px;
-      font-size: 11px;
-      cursor: pointer;
+    .place-rating i {
+      color: #FFC107;
+    }
+
+    @media (max-width: 576px) {
+      .places-search-container {
+        width: calc(100% - 40px);
+      }
     }
   `],
   standalone: true,
@@ -254,6 +650,15 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
   errorMessage = '';
   mapboxTokenAvailable = false;
   providerType: MapProviderType = MapProviderType.LEAFLET;
+  showFullPanel = true;
+  selectedPlace: Place | null = null;
+
+  // Propriétés pour l'autocomplétion
+  suggestions: PlaceSuggestion[] = [];
+  showSuggestions = false;
+  activeSuggestion: PlaceSuggestion | null = null;
+  private searchTerms = new Subject<string>();
+  private suggestionsSubscription?: Subscription;
 
   private markersLayer: L.LayerGroup | null = null;
   private mapboxMarkers: mapboxgl.Marker[] = [];
@@ -295,12 +700,182 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
         });
       }
     }
+
+    // Configuration de l'autocomplétion avec debounceTime
+    this.suggestionsSubscription = this.searchTerms.pipe(
+      debounceTime(300), // Attendre 300ms après que l'utilisateur ait arrêté de taper
+      distinctUntilChanged(), // Ignorer si le terme est le même qu'avant
+      tap(() => this.loading = true),
+      switchMap(term => {
+        if (term.length < 2) { // Ignorer les termes trop courts
+          this.suggestions = [];
+          this.loading = false;
+          return of([]);
+        }
+
+        // Récupérer les coordonnées actuelles de la carte pour un meilleur contexte
+        let lat: number | undefined;
+        let lng: number | undefined;
+
+        if (this.map) {
+          if (this.providerType === MapProviderType.LEAFLET) {
+            const center = (this.map as L.Map).getCenter();
+            lat = center.lat;
+            lng = center.lng;
+          } else {
+            const center = (this.map as mapboxgl.Map).getCenter();
+            lat = center.lat;
+            lng = center.lng;
+          }
+        }
+
+        return this.placesService.getPlaceSuggestions(term, lat, lng);
+      })
+    ).subscribe(suggestions => {
+      this.suggestions = suggestions;
+      this.loading = false;
+      this.showSuggestions = suggestions.length > 0;
+    }, error => {
+      console.error('Erreur lors de la récupération des suggestions:', error);
+      this.loading = false;
+      this.showSuggestions = false;
+    });
+
+    // Ajouter un écouteur pour gérer les clics en dehors de la zone de suggestions
+    document.addEventListener('click', this.handleOutsideClick);
   }
 
   ngOnDestroy(): void {
     if (this.searchSubscription) {
       this.searchSubscription.unsubscribe();
     }
+    if (this.suggestionsSubscription) {
+      this.suggestionsSubscription.unsubscribe();
+    }
+    // Supprimer l'écouteur d'événements pour éviter les fuites de mémoire
+    document.removeEventListener('click', this.handleOutsideClick);
+  }
+
+  // Gestionnaire pour les clics en dehors de la zone de suggestions
+  private handleOutsideClick = (event: MouseEvent) => {
+    // Vérifier si le clic est en dehors de la zone de suggestions
+    const suggestionsElement = document.querySelector('.suggestions-dropdown');
+    const searchInputElement = document.querySelector('.search-input');
+
+    if (suggestionsElement && searchInputElement) {
+      if (!suggestionsElement.contains(event.target as Node) &&
+        !searchInputElement.contains(event.target as Node)) {
+        this.showSuggestions = false;
+      }
+    }
+  };
+
+  togglePanel(): void {
+    this.showFullPanel = !this.showFullPanel;
+  }
+
+  clearSearch(): void {
+    this.searchQuery = '';
+    this.showSuggestions = false;
+    this.suggestions = [];
+    this.places = [];
+    this.errorMessage = '';
+    this.searched = false;
+  }
+
+  // Méthode appelée lorsque l'utilisateur tape dans le champ de recherche
+  onSearchKeyUp(event: KeyboardEvent): void {
+    // Gérer les touches spéciales
+    if (event.key === 'Escape') {
+      this.showSuggestions = false;
+      return;
+    } else if (event.key === 'ArrowDown') {
+      this.navigateSuggestion(1);
+      return;
+    } else if (event.key === 'ArrowUp') {
+      this.navigateSuggestion(-1);
+      return;
+    } else if (event.key === 'Enter') {
+      if (this.activeSuggestion) {
+        this.selectSuggestion(this.activeSuggestion);
+        return;
+      } else {
+        this.showSuggestions = false;
+        this.searchPlaces();
+        return;
+      }
+    }
+
+    // Si nous sommes ici, c'est une saisie normale
+    // Émettre le terme de recherche pour l'autocomplétion
+    const term = this.searchQuery.trim();
+    this.searchTerms.next(term);
+  }
+
+  // Navigation dans les suggestions avec les flèches
+  navigateSuggestion(direction: number): void {
+    if (!this.suggestions.length) return;
+
+    const currentIndex = this.activeSuggestion
+      ? this.suggestions.indexOf(this.activeSuggestion)
+      : -1;
+
+    let newIndex = currentIndex + direction;
+
+    // S'assurer que l'index reste dans les limites
+    if (newIndex < 0) newIndex = this.suggestions.length - 1;
+    if (newIndex >= this.suggestions.length) newIndex = 0;
+
+    this.activeSuggestion = this.suggestions[newIndex];
+  }
+
+  // Sélectionner une suggestion
+  selectSuggestion(suggestion: PlaceSuggestion): void {
+    this.searchQuery = suggestion.name;
+    this.showSuggestions = false;
+    this.activeSuggestion = null;
+
+    // Rechercher par ID, quelle que soit la source
+    // Cela fonctionne maintenant pour Google et Mapbox car nous avons amélioré les deux implémentations
+    this.searchByPlaceId(suggestion.id);
+  }
+
+  // Rechercher un lieu par son ID (pour Google Places)
+  private searchByPlaceId(placeId: string): void {
+    console.log('Recherche par place ID:', placeId);
+    this.loading = true;
+    this.searched = true;
+    this.errorMessage = '';
+
+    this.placesService.getPlaceDetails(placeId).subscribe(
+      place => {
+        console.log('Détails du lieu récupérés:', place);
+
+        if (place && place.id) {
+          // Vérifier si le lieu a des coordonnées valides
+          if (place.lat === 0 && place.lng === 0) {
+            console.warn('Lieu sans coordonnées valides. ID:', place.id);
+          } else {
+            console.log(`Coordonnées valides trouvées: lat=${place.lat}, lng=${place.lng}`);
+          }
+
+          this.places = [place];
+          this.addMarkersToMap([place]);
+          this.selectPlace(place); // Auto-sélectionner le résultat
+        } else {
+          console.warn('Détails du lieu incomplets ou manquants');
+          // Fallback à la recherche standard si le détail n'est pas disponible
+          this.searchPlaces();
+        }
+        this.loading = false;
+      },
+      error => {
+        console.error('Erreur lors de la récupération des détails du lieu:', error);
+        this.loading = false;
+        // Fallback à la recherche standard
+        this.searchPlaces();
+      }
+    );
   }
 
   toggleDebug(): void {
@@ -316,6 +891,8 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     this.loading = true;
     this.searched = true;
     this.errorMessage = '';
+    this.showSuggestions = false;
+    this.selectedPlace = null;
 
     // Récupérer le centre de la carte selon le fournisseur
     let centerLat: number;
@@ -373,21 +950,89 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
   }
 
   selectPlace(place: Place): void {
-    this.placeSelected.emit(place);
+    console.log('selectPlace appelé avec:', place);
 
-    // Centrer la carte sur le lieu sélectionné selon le fournisseur
-    if (this.map) {
-      if (this.providerType === MapProviderType.LEAFLET) {
-        const leafletMap = this.map as L.Map;
-        leafletMap.setView([place.lat, place.lng], 16);
-      } else if (this.providerType === MapProviderType.MAPBOX) {
-        const mapboxMap = this.map as mapboxgl.Map;
-        mapboxMap.flyTo({
-          center: [place.lng, place.lat], // Mapbox utilise [lng, lat]
-          zoom: 16,
-          essential: true
-        });
-      }
+    // Vérifier si nous avons déjà des coordonnées valides
+    if (place.lat === 0 && place.lng === 0) {
+      console.warn('Lieu sans coordonnées valides, tentative de récupération des détails...');
+      this.loading = true;
+
+      // Essayer de récupérer les coordonnées par l'API
+      this.placesService.getPlaceDetails(place.id).subscribe(
+        detailedPlace => {
+          this.loading = false;
+          console.log('Détails complets récupérés:', detailedPlace);
+
+          // Si les détails récupérés ont des coordonnées valides
+          if (detailedPlace && detailedPlace.lat !== 0 && detailedPlace.lng !== 0) {
+            console.log(`Coordonnées trouvées: lat=${detailedPlace.lat}, lng=${detailedPlace.lng}`);
+
+            // Mettre à jour le lieu et émettre l'événement
+            this.selectedPlace = detailedPlace;
+            this.placeSelected.emit(detailedPlace);
+
+            // Mettre à jour la liste des lieux
+            const index = this.places.findIndex(p => p.id === place.id);
+            if (index !== -1) {
+              this.places[index] = detailedPlace;
+              this.addMarkersToMap(this.places);
+            }
+
+            // Centrer la carte
+            this.centerMapOnPlace(detailedPlace);
+          } else {
+            console.error('Impossible de récupérer des coordonnées valides pour:', place.id);
+
+            // Afficher les informations d'erreur à l'utilisateur
+            this.errorMessage = `Impossible de localiser "${place.name}" sur la carte. ID: ${place.id}`;
+
+            this.selectedPlace = place;
+            this.placeSelected.emit(place);
+            // Ne pas centrer la carte sans coordonnées valides
+          }
+        },
+        error => {
+          console.error('Erreur lors de la récupération des détails:', error);
+          this.loading = false;
+          this.errorMessage = `Erreur lors de la récupération des détails pour "${place.name}"`;
+          this.selectedPlace = place;
+          this.placeSelected.emit(place);
+        }
+      );
+    } else {
+      console.log(`Utilisation directe des coordonnées existantes: lat=${place.lat}, lng=${place.lng}`);
+      // Effacer tout message d'erreur précédent
+      this.errorMessage = '';
+
+      // Si nous avons déjà des coordonnées, utiliser directement le lieu
+      this.selectedPlace = place;
+      this.placeSelected.emit(place);
+      this.centerMapOnPlace(place);
+
+      // Mettre en évidence le lieu sélectionné dans la liste en actualisant les marqueurs
+      this.addMarkersToMap(this.places);
+    }
+  }
+
+  // Méthode pour centrer la carte sur un lieu spécifique
+  private centerMapOnPlace(place: Place): void {
+    if (!this.map || !place || place.lat === 0 && place.lng === 0) {
+      console.warn('Impossible de centrer la carte: carte non disponible ou coordonnées invalides');
+      return;
+    }
+
+    console.log(`Centrage de la carte sur: lat=${place.lat}, lng=${place.lng}`);
+
+    if (this.providerType === MapProviderType.LEAFLET) {
+      const leafletMap = this.map as L.Map;
+      leafletMap.setView([place.lat, place.lng], 16);
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      const mapboxMap = this.map as mapboxgl.Map;
+      mapboxMap.flyTo({
+        center: [place.lng, place.lat], // Mapbox utilise [lng, lat]
+        zoom: 16,
+        essential: true
+      });
     }
   }
 

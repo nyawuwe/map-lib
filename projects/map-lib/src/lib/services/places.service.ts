@@ -28,6 +28,13 @@ export interface Place {
   plusCode?: string;
 }
 
+export interface PlaceSuggestion {
+  id: string;
+  name: string;
+  description?: string;
+  source: 'google' | 'mapbox';
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -35,6 +42,7 @@ export class PlacesService {
   private placesApiUrl = 'https://maps.googleapis.com/maps/api/place/nearbysearch/json';
   private placeDetailsApiUrl = 'https://maps.googleapis.com/maps/api/place/details/json';
   private mapboxGeocodingUrl = 'https://api.mapbox.com/geocoding/v5/mapbox.places';
+  private googleAutocompleteUrl = 'https://maps.googleapis.com/maps/api/place/autocomplete/json';
 
   // Pour suivre l'état de validité de la clé Google
   private isGoogleKeyValid = new BehaviorSubject<boolean | null>(null);
@@ -99,39 +107,78 @@ export class PlacesService {
    * Récupère les points d'intérêt autour d'un emplacement en utilisant l'API appropriée
    */
   getNearbyPlaces(lat: number, lng: number, radius: number = 1000, type: string = ''): Observable<Place[]> {
+    console.log(`getNearbyPlaces appelé: lat=${lat}, lng=${lng}, radius=${radius}, type=${type}`);
+
     // Vérifier d'abord si le jeton Mapbox est disponible (injecté OU dans la config)
     const mapboxToken = this.effectiveMapboxToken;
 
     if (!mapboxToken) {
       console.warn("Aucun jeton Mapbox disponible. Utilisation de Google Places uniquement.");
-      return this.getGooglePlaces(lat, lng, radius, type);
+      return this.getGooglePlaces(lat, lng, radius, type).pipe(
+        // S'assurer que tous les lieux ont des coordonnées valides
+        map(places => this.ensureValidCoordinates(places, lat, lng))
+      );
     }
 
     const currentProvider = this.mapService.getCurrentProviderType();
+    console.log('Fournisseur de carte actuel:', currentProvider);
 
     // Si on utilise Mapbox comme fournisseur, on utilise directement l'API Mapbox
     if (currentProvider === MapProviderType.MAPBOX) {
-      return this.getMapboxPlaces(lng, lat, radius, type);
+      console.log('Utilisation de Mapbox pour la recherche (fournisseur actuel)');
+      return this.getMapboxPlaces(lng, lat, radius, type).pipe(
+        map(places => this.ensureValidCoordinates(places, lat, lng))
+      );
     }
 
     // Si la clé Google a déjà été vérifiée
     if (this.googleKeyChecked) {
-      return this.isGoogleKeyValid.getValue()
-        ? this.getGooglePlaces(lat, lng, radius, type)
-        : this.getMapboxPlaces(lng, lat, radius, type);
+      if (this.isGoogleKeyValid.getValue()) {
+        console.log('Utilisation de Google Places (clé valide)');
+        return this.getGooglePlaces(lat, lng, radius, type).pipe(
+          map(places => this.ensureValidCoordinates(places, lat, lng))
+        );
+      } else {
+        console.log("Utilisation de l'API Mapbox (clé Google invalide)");
+        return this.getMapboxPlaces(lng, lat, radius, type).pipe(
+          map(places => this.ensureValidCoordinates(places, lat, lng))
+        );
+      }
     }
 
     // Vérifier la clé Google et choisir l'API appropriée
+    console.log('Vérification de la clé Google...');
     return this.checkGoogleApiKey().pipe(
       switchMap(isValid => {
         if (isValid) {
+          console.log('Clé Google valide, utilisation de Google Places');
           return this.getGooglePlaces(lat, lng, radius, type);
         } else {
           console.log("Utilisation de l'API Mapbox pour la recherche (clé Google invalide)");
           return this.getMapboxPlaces(lng, lat, radius, type);
         }
-      })
+      }),
+      map(places => this.ensureValidCoordinates(places, lat, lng))
     );
+  }
+
+  /**
+   * S'assure que tous les lieux ont des coordonnées valides
+   * Remplace les coordonnées invalides (0,0) par les coordonnées de la recherche
+   */
+  private ensureValidCoordinates(places: Place[], searchLat: number, searchLng: number): Place[] {
+    return places.map(place => {
+      if (place.lat === 0 && place.lng === 0) {
+        console.warn(`Lieu sans coordonnées valides: ${place.id}, ${place.name}. Utilisation des coordonnées de recherche.`);
+        return {
+          ...place,
+          lat: searchLat,
+          lng: searchLng,
+          plusCode: this.generatePlusCode(searchLat, searchLng)
+        };
+      }
+      return place;
+    });
   }
 
   /**
@@ -217,6 +264,7 @@ export class PlacesService {
     };
 
     return this.http.get<any>(url, { params }).pipe(
+      tap(response => console.log('Résultats Mapbox recherche:', JSON.stringify(response))),
       map(response => {
         if (!response.features || response.features.length === 0) {
           // Fallback si aucun résultat
@@ -226,19 +274,23 @@ export class PlacesService {
         // Filtrer les résultats qui sont trop éloignés de la position actuelle
         return response.features
           .map((feature: any) => {
-            const [lng, lat] = feature.center;
-            const distance = this.calculateDistance(lat, lng, lat, lng);
+            const [featureLng, featureLat] = feature.center;
+            const distance = this.calculateDistance(featureLat, featureLng, lat, lng);
 
             // Ne garder que les lieux dans le rayon spécifié
             if (distance <= radius) {
+              // Créer un ID composé qui inclut les coordonnées pour faciliter la récupération ultérieure
+              // Format: "coordID:lat:lng:nom"
+              const coordID = `${featureLat}:${featureLng}:${feature.text}`;
+
               return {
-                id: feature.id,
+                id: coordID, // Utiliser l'ID avec coordonnées intégrées
                 name: feature.text,
-                lat: lat,
-                lng: lng,
+                lat: featureLat,
+                lng: featureLng,
                 type: this.mapboxTypeToCategory(feature.properties?.category || feature.place_type[0] || query),
                 address: feature.place_name,
-                plusCode: this.generatePlusCode(lat, lng)
+                plusCode: this.generatePlusCode(featureLat, featureLng)
               };
             }
             return null;
@@ -332,7 +384,10 @@ export class PlacesService {
     };
   }
 
-  private generatePlusCode(lat: number, lng: number): string {
+  /**
+   * Génère un Plus Code à partir de coordonnées géographiques
+   */
+  generatePlusCode(lat: number, lng: number): string {
     // Préserver les quadrants
     const latPrefix = lat >= 0 ? 'N' : 'S';
     const lngPrefix = lng >= 0 ? 'E' : 'W';
@@ -348,14 +403,20 @@ export class PlacesService {
    * Récupère les détails d'un point d'intérêt
    */
   getPlaceDetails(placeId: string): Observable<Place> {
+    console.log('getPlaceDetails appelé avec ID:', placeId);
     const currentProvider = this.mapService.getCurrentProviderType();
+    console.log('Fournisseur de carte actuel:', currentProvider);
+    console.log('État de la clé Google:', this.isGoogleKeyValid.getValue(), 'vérifiée:', this.googleKeyChecked);
+    console.log('Token Mapbox disponible:', !!this.effectiveMapboxToken);
 
     // Si on utilise Mapbox ou si la clé Google est invalide
     if (currentProvider === MapProviderType.MAPBOX ||
       (this.googleKeyChecked && !this.isGoogleKeyValid.getValue())) {
+      console.log('Utilisation de Mapbox pour les détails du lieu');
       // Pour Mapbox, nous utilisons l'endpoint de recherche pour obtenir plus de détails
       return this.getMapboxPlaceDetails(placeId);
     } else {
+      console.log('Tentative avec Google Places pour les détails du lieu');
       return this.getGooglePlaceDetails(placeId).pipe(
         catchError(error => {
           console.error("Erreur lors de la récupération des détails Google, basculement sur Mapbox:", error);
@@ -372,22 +433,32 @@ export class PlacesService {
    * Récupère les détails via l'API Google Places
    */
   private getGooglePlaceDetails(placeId: string): Observable<Place> {
+    console.log('Début getGooglePlaceDetails avec ID:', placeId);
     const params = {
       place_id: placeId,
-      fields: 'name,formatted_address,formatted_phone_number,website,opening_hours,photos,rating',
+      fields: 'name,formatted_address,formatted_phone_number,website,opening_hours,photos,rating,geometry',
       key: this.googleApiKey
     };
 
+    console.log('Requête Google Places Details:', params);
+
     return this.http.get<any>(this.placeDetailsApiUrl, { params }).pipe(
+      tap(response => console.log('Réponse Google:', response)),
       map(response => {
         if (response.result) {
           const place = response.result;
+          // Récupérer les coordonnées depuis geometry.location
+          const lat = place.geometry?.location?.lat || 0;
+          const lng = place.geometry?.location?.lng || 0;
+
+          console.log(`Coordonnées Google extraites: lat=${lat}, lng=${lng}`);
+
           return {
             id: placeId,
             name: place.name,
-            lat: 0, // Ces valeurs seront remplacées par les coordonnées du marqueur
-            lng: 0,
-            type: '',
+            lat: lat,
+            lng: lng,
+            type: place.types?.[0] || '',
             rating: place.rating,
             address: place.formatted_address,
             phone: place.formatted_phone_number,
@@ -395,9 +466,11 @@ export class PlacesService {
             openingHours: place.opening_hours?.weekday_text || [],
             photos: place.photos?.map((photo: any) =>
               `https://maps.googleapis.com/maps/api/place/photo?maxwidth=400&photoreference=${photo.photo_reference}&key=${this.googleApiKey}`
-            ) || []
+            ) || [],
+            plusCode: this.generatePlusCode(lat, lng)
           };
         }
+        console.warn('Aucun résultat dans la réponse Google Places');
         return {} as Place;
       }),
       catchError(error => {
@@ -411,6 +484,27 @@ export class PlacesService {
    * Récupère les détails via l'API Mapbox
    */
   private getMapboxPlaceDetails(featureId: string): Observable<Place> {
+    console.log('Début getMapboxPlaceDetails avec ID:', featureId);
+
+    // Vérifier si featureId est un objet JSON encodé (cas où nous avons déjà les informations)
+    try {
+      const decodedFeature = JSON.parse(featureId);
+      if (decodedFeature && typeof decodedFeature === 'object' && decodedFeature.lat && decodedFeature.lng) {
+        console.log('ID est un objet JSON encodé avec coordonnées:', decodedFeature);
+        return of({
+          id: featureId,
+          name: decodedFeature.name || 'Lieu',
+          lat: decodedFeature.lat,
+          lng: decodedFeature.lng,
+          type: decodedFeature.type || 'default',
+          address: decodedFeature.address || 'Information non disponible',
+          plusCode: this.generatePlusCode(decodedFeature.lat, decodedFeature.lng)
+        });
+      }
+    } catch (e) {
+      // Ce n'est pas un JSON valide, continuons avec le traitement normal
+    }
+
     // Vérifier si le jeton Mapbox est disponible
     const mapboxToken = this.effectiveMapboxToken;
 
@@ -427,17 +521,170 @@ export class PlacesService {
       } as Place);
     }
 
-    // Mapbox n'a pas d'API de détails équivalente à Google Places
-    // On pourrait utiliser d'autres APIs pour compléter l'information
-    return of({
-      id: featureId,
-      name: 'Lieu',
-      lat: 0,
-      lng: 0,
-      type: 'default',
-      address: 'Information non disponible',
-      plusCode: ''
-    } as Place);
+    // Récupérer les identifiants originaux s'ils sont stockés dans le format "placeData:lat:lng"
+    if (featureId.startsWith('placeData:')) {
+      const parts = featureId.split(':');
+      if (parts.length >= 3) {
+        const lat = parseFloat(parts[1]);
+        const lng = parseFloat(parts[2]);
+        const name = parts[3] || 'Lieu';
+
+        console.log(`ID au format spécial placeData, coordonnées extraites: lat=${lat}, lng=${lng}`);
+
+        return of({
+          id: featureId,
+          name: name,
+          lat: lat,
+          lng: lng,
+          type: 'default',
+          address: 'Information disponible via les coordonnées',
+          plusCode: this.generatePlusCode(lat, lng)
+        });
+      }
+    }
+
+    // Si l'ID a le format Mapbox (id.feature) ou est un ID numérique simple
+    // Tenter une recherche par géocodage inverse à partir des coordonnées stockées dans l'ID si possible
+    if (featureId.includes(':')) {
+      const coords = featureId.split(':');
+      const lat = parseFloat(coords[0]);
+      const lng = parseFloat(coords[1]);
+
+      if (!isNaN(lat) && !isNaN(lng)) {
+        console.log(`ID contient des coordonnées séparées par ':': lat=${lat}, lng=${lng}`);
+        // Effectuer une recherche par géocodage inverse
+        const reverseUrl = `${this.mapboxGeocodingUrl}/${lng},${lat}.json`;
+        const params = {
+          access_token: mapboxToken,
+          types: 'poi,address,place',
+          limit: '1'
+        };
+
+        console.log('Requête de géocodage inverse Mapbox:', reverseUrl, params);
+
+        return this.http.get<any>(reverseUrl, { params }).pipe(
+          tap(response => console.log('Réponse géocodage inverse Mapbox:', JSON.stringify(response))),
+          map(response => {
+            if (response && response.features && response.features.length > 0) {
+              const feature = response.features[0];
+              return {
+                id: featureId,
+                name: feature.text || feature.place_name || 'Lieu',
+                lat: lat,
+                lng: lng,
+                type: this.mapboxTypeToCategory(feature.properties?.category || feature.place_type[0] || 'default'),
+                address: feature.place_name || 'Information non disponible',
+                plusCode: this.generatePlusCode(lat, lng)
+              };
+            }
+
+            // Si aucun résultat n'est trouvé, retourner les coordonnées directement
+            return {
+              id: featureId,
+              name: 'Lieu',
+              lat: lat,
+              lng: lng,
+              type: 'default',
+              address: `Coordonnées: ${lat}, ${lng}`,
+              plusCode: this.generatePlusCode(lat, lng)
+            };
+          }),
+          catchError(error => {
+            console.error('Erreur lors du géocodage inverse:', error);
+            // En cas d'erreur, utiliser les coordonnées directement
+            return of({
+              id: featureId,
+              name: 'Lieu',
+              lat: lat,
+              lng: lng,
+              type: 'default',
+              address: `Coordonnées: ${lat}, ${lng}`,
+              plusCode: this.generatePlusCode(lat, lng)
+            });
+          })
+        );
+      }
+    }
+
+    // Pour les autres formats d'ID Mapbox, essayer une recherche normale
+    console.log('Recherche standard pour ID Mapbox:', featureId);
+
+    // URL de l'API Mapbox Geocoding avec recherche par texte
+    const url = `${this.mapboxGeocodingUrl}/${featureId}.json`;
+
+    const params = {
+      access_token: mapboxToken,
+      types: 'poi,address,place',
+      limit: '1'
+    };
+
+    console.log('Requête Mapbox par ID:', url, params);
+
+    return this.http.get<any>(url, { params }).pipe(
+      tap(response => console.log('Réponse Mapbox par ID:', JSON.stringify(response))),
+      map(response => {
+        // Si la recherche par ID a retourné des résultats
+        if (response && response.features && response.features.length > 0) {
+          const feature = response.features[0];
+          const coords = feature.center || feature.geometry?.coordinates || [0, 0];
+          const lng = coords[0];
+          const lat = coords[1];
+
+          console.log(`Coordonnées trouvées: lat=${lat}, lng=${lng}`);
+
+          return {
+            id: featureId,
+            name: feature.text || feature.place_name || 'Lieu',
+            lat: lat,
+            lng: lng,
+            type: this.mapboxTypeToCategory(feature.properties?.category || feature.place_type[0] || 'default'),
+            address: feature.place_name || 'Information non disponible',
+            plusCode: this.generatePlusCode(lat, lng)
+          };
+        }
+
+        // Si aucun résultat n'est trouvé, essayer de voir si l'ID contient des coordonnées numériques
+        if (!isNaN(parseFloat(featureId))) {
+          // Peut-être un ID numérique simple, utiliser comme une approximation de position
+          const numericId = parseFloat(featureId);
+          // Essayer de l'interpréter comme une position approximative
+          console.warn('Aucun résultat trouvé, tentative d\'utiliser l\'ID comme approximation:', numericId);
+
+          return {
+            id: featureId,
+            name: 'Position approximative',
+            lat: 0,  // Ne pas utiliser numericId comme coordonnée, c'est trop spéculatif
+            lng: 0,
+            type: 'default',
+            address: 'Information non disponible',
+            plusCode: ''
+          };
+        }
+
+        console.warn('Aucun résultat trouvé pour l\'ID:', featureId);
+        return {
+          id: featureId,
+          name: 'Lieu (non trouvé)',
+          lat: 0,
+          lng: 0,
+          type: 'default',
+          address: 'Information non disponible',
+          plusCode: ''
+        } as Place;
+      }),
+      catchError(error => {
+        console.error('Erreur lors de la récupération des détails Mapbox:', error);
+        return of({
+          id: featureId,
+          name: 'Lieu (erreur)',
+          lat: 0,
+          lng: 0,
+          type: 'default',
+          address: 'Erreur lors de la récupération des détails',
+          plusCode: ''
+        } as Place);
+      })
+    );
   }
 
   /**
@@ -505,5 +752,158 @@ export class PlacesService {
       details: details,
       imageSrc: place.photos && place.photos.length > 0 ? place.photos[0] : undefined
     };
+  }
+
+  /**
+   * Récupère des suggestions de lieux basées sur le texte saisi par l'utilisateur
+   * @param query Texte saisi par l'utilisateur
+   * @param lat Latitude actuelle de la carte (optionnelle)
+   * @param lng Longitude actuelle de la carte (optionnelle)
+   * @param radius Rayon de recherche en mètres (optionnel, par défaut 50000)
+   * @returns Observable avec un tableau de suggestions
+   */
+  getPlaceSuggestions(query: string, lat?: number, lng?: number, radius: number = 50000): Observable<PlaceSuggestion[]> {
+    if (!query.trim()) {
+      return of([]);
+    }
+
+    // Déterminer quelle API utiliser en fonction des tokens disponibles et de leur validité
+    const mapboxToken = this.effectiveMapboxToken;
+    const currentProvider = this.mapService.getCurrentProviderType();
+
+    // Si on utilise Mapbox ou si le token Mapbox est disponible et la clé Google invalide
+    if (currentProvider === MapProviderType.MAPBOX ||
+      (mapboxToken && this.googleKeyChecked && !this.isGoogleKeyValid.getValue())) {
+      return this.getMapboxSuggestions(query, lng, lat, radius);
+    }
+
+    // Si la clé Google a déjà été vérifiée et est valide
+    if (this.googleKeyChecked && this.isGoogleKeyValid.getValue()) {
+      return this.getGoogleSuggestions(query, lat, lng, radius);
+    }
+
+    // Vérifier la clé Google et choisir l'API appropriée
+    return this.checkGoogleApiKey().pipe(
+      switchMap(isValid => {
+        if (isValid) {
+          return this.getGoogleSuggestions(query, lat, lng, radius);
+        } else if (mapboxToken) {
+          console.log("Utilisation de l'API Mapbox pour l'autocomplétion (clé Google invalide)");
+          return this.getMapboxSuggestions(query, lng, lat, radius);
+        } else {
+          // Aucune API disponible
+          console.error("Aucune API disponible pour l'autocomplétion");
+          return of([]);
+        }
+      })
+    );
+  }
+
+  /**
+   * Récupère des suggestions via l'API Google Places Autocomplete
+   */
+  private getGoogleSuggestions(query: string, lat?: number, lng?: number, radius: number = 50000): Observable<PlaceSuggestion[]> {
+    const params: any = {
+      input: query,
+      key: this.googleApiKey,
+      language: 'fr' // Langue française par défaut
+      // Suppression de "components: 'country:fr'" pour permettre une recherche mondiale
+    };
+
+    // Ajouter le biais de localisation si des coordonnées sont fournies
+    if (lat !== undefined && lng !== undefined) {
+      params.location = `${lat},${lng}`;
+      params.radius = radius.toString();
+    }
+
+    return this.http.get<any>(this.googleAutocompleteUrl, { params }).pipe(
+      map(response => {
+        if (response.status === 'REQUEST_DENIED') {
+          console.warn('Google Places API a refusé la requête:', response.error_message);
+          this.isGoogleKeyValid.next(false);
+          throw new Error(response.error_message || 'Clé API invalide');
+        }
+
+        if (!response.predictions || response.predictions.length === 0) {
+          return [];
+        }
+
+        return response.predictions.map((prediction: any) => ({
+          id: prediction.place_id,
+          name: prediction.structured_formatting?.main_text || prediction.description.split(',')[0],
+          description: prediction.description,
+          source: 'google' as const
+        }));
+      }),
+      catchError(error => {
+        console.error('Erreur lors de la récupération des suggestions (Google):', error);
+
+        // Marquer la clé comme invalide si on obtient une erreur d'autorisation
+        if (error.status === 403 || error.status === 401 ||
+          (error.message && error.message.includes('API'))) {
+          this.isGoogleKeyValid.next(false);
+        }
+
+        // Fallback sur Mapbox si disponible
+        if (this.effectiveMapboxToken) {
+          return this.getMapboxSuggestions(query, lng, lat, radius);
+        }
+
+        return of([]);
+      })
+    );
+  }
+
+  /**
+   * Récupère des suggestions via l'API Mapbox Geocoding
+   */
+  private getMapboxSuggestions(query: string, lng?: number, lat?: number, radius: number = 50000): Observable<PlaceSuggestion[]> {
+    // Formatage de la requête pour Mapbox
+    const formattedQuery = query.replace(/\s+/g, '%20');
+
+    // Vérifier si le jeton Mapbox est disponible
+    const mapboxToken = this.effectiveMapboxToken;
+    if (!mapboxToken) {
+      console.error("Aucun jeton Mapbox disponible pour l'autocomplétion");
+      return of([]);
+    }
+
+    // Configurer les paramètres de l'API
+    const params: any = {
+      access_token: mapboxToken,
+      autocomplete: true,
+      language: 'fr', // Langue française par défaut
+      // Suppression de "country: 'fr'" pour permettre une recherche mondiale
+      types: 'poi,address,place', // Types de lieux à inclure
+      limit: 5 // Nombre de suggestions
+    };
+
+    // Ajouter le biais de proximité si des coordonnées sont fournies
+    if (lng !== undefined && lat !== undefined) {
+      // Mapbox utilise [longitude, latitude]
+      params.proximity = `${lng},${lat}`;
+    }
+
+    // URL de l'API Mapbox Geocoding
+    const url = `${this.mapboxGeocodingUrl}/${formattedQuery}.json`;
+
+    return this.http.get<any>(url, { params }).pipe(
+      map(response => {
+        if (!response.features || response.features.length === 0) {
+          return [];
+        }
+
+        return response.features.map((feature: any) => ({
+          id: feature.id,
+          name: feature.text,
+          description: feature.place_name,
+          source: 'mapbox' as const
+        }));
+      }),
+      catchError(error => {
+        console.error('Erreur lors de la récupération des suggestions (Mapbox):', error);
+        return of([]);
+      })
+    );
   }
 }
