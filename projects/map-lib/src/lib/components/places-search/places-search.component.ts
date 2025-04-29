@@ -10,6 +10,20 @@ import { Subscription, Subject, debounceTime, distinctUntilChanged, switchMap, t
 import { Inject, Optional } from '@angular/core';
 import { MapConfigService } from '../../services/map-config.service';
 
+// Interface pour la zone marquée
+export interface MarkedZone {
+  lat: number;
+  lng: number;
+  name: string;
+  plusCode: string;
+}
+
+// Interface pour les données de localisation
+export interface PlacesLocationData {
+  latlng: L.LatLng | [number, number];
+  accuracy: number;
+}
+
 @Component({
   selector: 'lib-places-search',
   template: `
@@ -39,6 +53,10 @@ import { MapConfigService } from '../../services/map-config.service';
                 >
                 <button class="clear-button" *ngIf="searchQuery" (click)="clearSearch()">
                   <i class="fas fa-times"></i>
+                </button>
+                <button class="location-button" [class.active]="isLocating" (click)="locateUser($event)"
+                  title="Ma position">
+                  <i class="fas fa-crosshairs"></i>
                 </button>
               </div>
 
@@ -107,6 +125,35 @@ import { MapConfigService } from '../../services/map-config.service';
             </div>
           </div>
 
+          <!-- Position actuelle (géolocalisation) -->
+          <div class="user-location" *ngIf="userLocation">
+            <div class="user-location-header">
+              <h4>
+                <i class="fas fa-crosshairs"></i>
+                Ma position
+              </h4>
+              <button class="close-button" (click)="clearUserLocation()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="user-location-content">
+              <div class="user-location-details">
+                <div class="user-location-coords">
+                  <i class="fas fa-map-marker-alt"></i>
+                  {{ userLocation.lat.toFixed(6) }}, {{ userLocation.lng.toFixed(6) }}
+                </div>
+                <div class="user-location-plus-code">
+                  <i class="fas fa-location-arrow"></i>
+                  {{ userLocation.plusCode }}
+                </div>
+                <div class="user-location-accuracy" *ngIf="userLocation.accuracy">
+                  <i class="fas fa-circle"></i>
+                  Précision: {{ userLocation.accuracy.toFixed(0) }} m
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- Informations de débogage -->
           <div *ngIf="debugInfo" class="debug-info">
             <div class="debug-header">
@@ -141,6 +188,33 @@ import { MapConfigService } from '../../services/map-config.service';
                     <i class="fas fa-location-arrow"></i> {{ place.plusCode }}
                   </div>
                 </div>
+              </div>
+              <button
+                class="mark-zone-button"
+                *ngIf="selectedPlace === place && selectedPlace.lat !== 0 && selectedPlace.lng !== 0"
+                (click)="markZone(place, $event)">
+                <i class="fas fa-map-marker-alt"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Zone marquée -->
+          <div class="marked-zone" *ngIf="markedZone">
+            <div class="marked-zone-header">
+              <h4>Zone marquée</h4>
+              <button class="close-button" (click)="clearMarkedZone()">
+                <i class="fas fa-times"></i>
+              </button>
+            </div>
+            <div class="marked-zone-content">
+              <div class="marked-zone-name">
+                <i class="fas fa-map-marker-alt"></i> {{ markedZone.name }}
+              </div>
+              <div class="marked-zone-coords">
+                <i class="fas fa-crosshairs"></i> {{ markedZone.lat.toFixed(6) }}, {{ markedZone.lng.toFixed(6) }}
+              </div>
+              <div class="marked-zone-plus-code">
+                <i class="fas fa-location-arrow"></i> {{ markedZone.plusCode }}
               </div>
             </div>
           </div>
@@ -441,6 +515,73 @@ import { MapConfigService } from '../../services/map-config.service';
       transform: scale(1.1);
     }
 
+    .mark-zone-button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-left: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .mark-zone-button:hover {
+      background-color: #43A047;
+      transform: scale(1.1);
+    }
+
+    .marked-zone {
+      margin-top: 15px;
+      background-color: #e8f5e9;
+      border-radius: 8px;
+      padding: 15px;
+      border: 1px solid #c8e6c9;
+    }
+
+    .marked-zone-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .marked-zone-header h4 {
+      margin: 0;
+      color: #2E7D32;
+      font-size: 16px;
+      font-weight: 500;
+    }
+
+    .marked-zone-content > div {
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+    }
+
+    .marked-zone-content i {
+      color: #2E7D32;
+      margin-right: 8px;
+      width: 16px;
+      text-align: center;
+    }
+
+    .marked-zone-name {
+      font-weight: 500;
+      font-size: 14px;
+    }
+
+    .marked-zone-coords,
+    .marked-zone-plus-code {
+      font-size: 13px;
+      color: #555;
+    }
+
     /* Styles pour l'indicateur de chargement */
     .loading-indicator {
       display: flex;
@@ -627,6 +768,83 @@ import { MapConfigService } from '../../services/map-config.service';
       color: #FFC107;
     }
 
+    .location-button {
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-left: 10px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+      transition: all 0.2s ease;
+    }
+
+    .location-button:hover {
+      background-color: #1976D2;
+      transform: scale(1.1);
+    }
+
+    .location-button.active {
+      background-color: #FF5722;
+    }
+
+    .user-location {
+      margin-top: 15px;
+      background-color: #e3f2fd;
+      border-radius: 8px;
+      padding: 15px;
+      border: 1px solid #bbdefb;
+    }
+
+    .user-location-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .user-location-header h4 {
+      margin: 0;
+      color: #1565C0;
+      font-size: 16px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+    }
+
+    .user-location-header h4 i {
+      margin-right: 8px;
+    }
+
+    .user-location-content > div {
+      margin-bottom: 5px;
+    }
+
+    .user-location-details > div {
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+    }
+
+    .user-location-details i {
+      color: #1565C0;
+      margin-right: 8px;
+      width: 16px;
+      text-align: center;
+    }
+
+    .user-location-coords,
+    .user-location-plus-code,
+    .user-location-accuracy {
+      font-size: 13px;
+      color: #555;
+    }
+
     @media (max-width: 576px) {
       .places-search-container {
         width: calc(100% - 40px);
@@ -638,7 +856,11 @@ import { MapConfigService } from '../../services/map-config.service';
 })
 export class PlacesSearchComponent implements OnInit, OnDestroy {
   @Input() map: L.Map | mapboxgl.Map | null = null;
+  @Input() plusCodeCard: any = null;
   @Output() placeSelected = new EventEmitter<Place>();
+  @Output() zoneMarked = new EventEmitter<MarkedZone>();
+  @Output() locationFound = new EventEmitter<PlacesLocationData>();
+  @Output() locationError = new EventEmitter<any>();
 
   searchQuery = '';
   searchRadius = 1000;
@@ -652,6 +874,20 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
   providerType: MapProviderType = MapProviderType.LEAFLET;
   showFullPanel = true;
   selectedPlace: Place | null = null;
+  markedZone: MarkedZone | null = null;
+  userLocation: { lat: number, lng: number, plusCode: string, accuracy?: number } | null = null;
+  isLocating = false;
+
+  // Propriétés pour la visualisation de la zone marquée
+  private zoneMarker: L.Marker | mapboxgl.Marker | null = null;
+  private zoneCircle: L.Circle | null = null;
+  private zoneGeoJSONSource: string = 'marked-zone-geojson';
+
+  // Propriétés pour la localisation utilisateur
+  private locationMarker: L.Marker | mapboxgl.Marker | null = null;
+  private locationCircle: L.Circle | null = null;
+  private locationGeoJSONSource: string = 'user-location-geojson';
+  private geolocateControl: mapboxgl.GeolocateControl | null = null;
 
   // Propriétés pour l'autocomplétion
   suggestions: PlaceSuggestion[] = [];
@@ -754,6 +990,7 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     }
     // Supprimer l'écouteur d'événements pour éviter les fuites de mémoire
     document.removeEventListener('click', this.handleOutsideClick);
+    this.cleanupLocationResources();
   }
 
   // Gestionnaire pour les clics en dehors de la zone de suggestions
@@ -978,17 +1215,18 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
               this.addMarkersToMap(this.places);
             }
 
+            // Afficher le Plus Code
+            if (this.plusCodeCard) {
+              this.plusCodeCard.show(detailedPlace.lat, detailedPlace.lng);
+            }
+
             // Centrer la carte
             this.centerMapOnPlace(detailedPlace);
           } else {
             console.error('Impossible de récupérer des coordonnées valides pour:', place.id);
-
-            // Afficher les informations d'erreur à l'utilisateur
             this.errorMessage = `Impossible de localiser "${place.name}" sur la carte. ID: ${place.id}`;
-
             this.selectedPlace = place;
             this.placeSelected.emit(place);
-            // Ne pas centrer la carte sans coordonnées valides
           }
         },
         error => {
@@ -1001,15 +1239,18 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
       );
     } else {
       console.log(`Utilisation directe des coordonnées existantes: lat=${place.lat}, lng=${place.lng}`);
-      // Effacer tout message d'erreur précédent
       this.errorMessage = '';
 
       // Si nous avons déjà des coordonnées, utiliser directement le lieu
       this.selectedPlace = place;
       this.placeSelected.emit(place);
-      this.centerMapOnPlace(place);
 
-      // Mettre en évidence le lieu sélectionné dans la liste en actualisant les marqueurs
+      // Afficher le Plus Code
+      if (this.plusCodeCard) {
+        this.plusCodeCard.show(place.lat, place.lng);
+      }
+
+      this.centerMapOnPlace(place);
       this.addMarkersToMap(this.places);
     }
   }
@@ -1110,7 +1351,7 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
   private removeMarkersFromMap(): void {
     if (this.providerType === MapProviderType.LEAFLET) {
       if (this.markersLayer && this.map) {
-        (this.map as L.Map).removeLayer(this.markersLayer);
+        (this.markersLayer as L.LayerGroup).clearLayers();
         this.markersLayer = null;
       }
     } else if (this.providerType === MapProviderType.MAPBOX) {
@@ -1158,5 +1399,564 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     };
 
     return colorMap[type] || colorMap['default'];
+  }
+
+  /**
+   * Marque une zone sur la carte et affiche les détails
+   */
+  markZone(place: Place, event: MouseEvent): void {
+    // Empêcher la propagation du clic pour ne pas déclencher selectPlace
+    event.stopPropagation();
+
+    if (!place || !this.map) return;
+
+    console.log('Marquage de zone pour:', place);
+
+    // Créer l'objet de zone marquée
+    this.markedZone = {
+      lat: place.lat,
+      lng: place.lng,
+      name: place.name,
+      plusCode: place.plusCode || this.placesService.generatePlusCode(place.lat, place.lng)
+    };
+
+    // Nettoyer les marqueurs précédents
+    this.clearZoneMarkers();
+
+    // Ajouter le marqueur selon le type de carte
+    if (this.providerType === MapProviderType.LEAFLET) {
+      this.addLeafletZoneMarker(place);
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      this.addMapboxZoneMarker(place);
+    }
+
+    // Émettre l'événement de zone marquée
+    this.zoneMarked.emit(this.markedZone);
+  }
+
+  /**
+   * Nettoie la zone marquée
+   */
+  clearMarkedZone(): void {
+    this.markedZone = null;
+    this.clearZoneMarkers();
+  }
+
+  /**
+   * Ajoute un marqueur de zone pour Leaflet
+   */
+  private addLeafletZoneMarker(place: Place): void {
+    if (!this.map) return;
+    const leafletMap = this.map as L.Map;
+
+    // Créer le marqueur avec une icône distinctive
+    this.zoneMarker = L.marker([place.lat, place.lng], {
+      icon: L.divIcon({
+        className: 'marked-zone-icon',
+        html: '<div class="marked-zone-inner"></div>',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      })
+    }).addTo(leafletMap);
+
+    // Ajouter un cercle autour du marqueur
+    this.zoneCircle = L.circle([place.lat, place.lng], {
+      radius: 100, // Rayon de 100m
+      color: '#4CAF50',
+      fillColor: '#4CAF50',
+      fillOpacity: 0.15,
+      weight: 2
+    }).addTo(leafletMap);
+
+    // Centrer la carte sur le marqueur
+    leafletMap.setView([place.lat, place.lng], 16);
+
+    // Ajouter un popup avec les informations
+    this.zoneMarker.bindPopup(`
+      <div class="marked-zone-popup">
+        <h3>${place.name}</h3>
+        <p>Coordonnées: ${place.lat.toFixed(6)}, ${place.lng.toFixed(6)}</p>
+        <p>Plus Code: ${place.plusCode || this.placesService.generatePlusCode(place.lat, place.lng)}</p>
+      </div>
+    `).openPopup();
+  }
+
+  /**
+   * Ajoute un marqueur de zone pour Mapbox
+   */
+  private addMapboxZoneMarker(place: Place): void {
+    if (!this.map) return;
+    const mapboxMap = this.map as mapboxgl.Map;
+
+    // Créer l'élément du marqueur
+    const el = document.createElement('div');
+    el.className = 'marked-zone-mapbox-marker';
+    el.innerHTML = '<div class="marked-zone-inner"></div>';
+    el.style.width = '24px';
+    el.style.height = '24px';
+    el.style.borderRadius = '50%';
+    el.style.backgroundColor = '#4CAF50';
+    el.style.border = '2px solid white';
+    el.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)';
+
+    // Ajouter le marqueur à la carte
+    this.zoneMarker = new mapboxgl.Marker(el)
+      .setLngLat([place.lng, place.lat])
+      .addTo(mapboxMap);
+
+    // Créer un cercle autour du marqueur
+    // Vérifier si la source GeoJSON existe déjà
+    if (!mapboxMap.getSource(this.zoneGeoJSONSource)) {
+      mapboxMap.addSource(this.zoneGeoJSONSource, {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [place.lng, place.lat]
+          },
+          properties: {
+            radius: 100 // 100m de rayon
+          }
+        }
+      });
+
+      // Ajouter la couche de cercle
+      mapboxMap.addLayer({
+        id: 'marked-zone-circle',
+        source: this.zoneGeoJSONSource,
+        type: 'circle',
+        paint: {
+          'circle-radius': 100,
+          'circle-color': '#4CAF50',
+          'circle-opacity': 0.15,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#4CAF50'
+        }
+      });
+    } else {
+      // Mettre à jour la source existante
+      (mapboxMap.getSource(this.zoneGeoJSONSource) as mapboxgl.GeoJSONSource).setData({
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: [place.lng, place.lat]
+        },
+        properties: {
+          radius: 100
+        }
+      } as any);
+    }
+
+    // Centrer la carte sur le marqueur
+    mapboxMap.flyTo({
+      center: [place.lng, place.lat],
+      zoom: 16,
+      essential: true
+    });
+
+    // Ajouter un popup avec les informations
+    new mapboxgl.Popup({ offset: 25 })
+      .setLngLat([place.lng, place.lat])
+      .setHTML(`
+        <div class="marked-zone-popup">
+          <h3>${place.name}</h3>
+          <p>Coordonnées: ${place.lat.toFixed(6)}, ${place.lng.toFixed(6)}</p>
+          <p>Plus Code: ${place.plusCode || this.placesService.generatePlusCode(place.lat, place.lng)}</p>
+        </div>
+      `)
+      .addTo(mapboxMap);
+  }
+
+  /**
+   * Nettoie les marqueurs de zone
+   */
+  private clearZoneMarkers(): void {
+    if (!this.map) return;
+
+    if (this.providerType === MapProviderType.LEAFLET) {
+      const leafletMap = this.map as L.Map;
+
+      if (this.zoneMarker) {
+        (this.zoneMarker as L.Marker).remove();
+        this.zoneMarker = null;
+      }
+
+      if (this.zoneCircle) {
+        this.zoneCircle.remove();
+        this.zoneCircle = null;
+      }
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      const mapboxMap = this.map as mapboxgl.Map;
+
+      if (this.zoneMarker) {
+        (this.zoneMarker as mapboxgl.Marker).remove();
+        this.zoneMarker = null;
+      }
+
+      // Supprimer la couche et la source si elles existent
+      if (mapboxMap.getLayer('marked-zone-circle')) {
+        mapboxMap.removeLayer('marked-zone-circle');
+      }
+
+      if (mapboxMap.getSource(this.zoneGeoJSONSource)) {
+        mapboxMap.removeSource(this.zoneGeoJSONSource);
+      }
+    }
+  }
+
+  /**
+   * Géolocalise l'utilisateur et affiche sa position sur la carte
+   */
+  locateUser(event: MouseEvent): void {
+    // Empêcher le parent de réagir au clic
+    event.stopPropagation();
+
+    this.isLocating = !this.isLocating;
+
+    // Nettoyer les ressources précédentes
+    this.cleanupLocationResources();
+
+    if (this.isLocating) {
+      if (this.providerType === MapProviderType.LEAFLET) {
+        this.startLeafletLocation();
+      } else if (this.providerType === MapProviderType.MAPBOX) {
+        const mapboxMap = this.map as mapboxgl.Map;
+
+        if (mapboxMap.loaded()) {
+          this.startMapboxLocation();
+        } else {
+          console.log('Attente du chargement complet de la carte Mapbox...');
+          mapboxMap.once('load', () => {
+            console.log('Carte Mapbox chargée, démarrage de la localisation');
+            if (this.isLocating) {
+              this.startMapboxLocation();
+            }
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Démarre la localisation avec Leaflet
+   */
+  private startLeafletLocation(): void {
+    const leafletMap = this.map as L.Map;
+
+    try {
+      if (!leafletMap || !leafletMap.getContainer()) {
+        throw new Error('La carte Leaflet n\'est pas correctement initialisée');
+      }
+
+      leafletMap.locate({
+        watch: true,
+        setView: true,
+        maxZoom: 16,
+        enableHighAccuracy: true,
+        timeout: 30000
+      });
+
+      // Écouteurs d'événements
+      leafletMap.on('locationfound', this.onLeafletLocationFound.bind(this));
+      leafletMap.on('locationerror', this.onLeafletLocationError.bind(this));
+    } catch (err) {
+      console.error('Erreur lors de l\'initialisation de la localisation Leaflet:', err);
+      this.isLocating = false;
+      this.showLocationError(0, 'Erreur lors de l\'initialisation de la localisation');
+    }
+  }
+
+  /**
+   * Démarre la localisation avec Mapbox
+   */
+  private startMapboxLocation(): void {
+    const mapboxMap = this.map as mapboxgl.Map;
+
+    this.geolocateControl = new mapboxgl.GeolocateControl({
+      positionOptions: {
+        enableHighAccuracy: true,
+        timeout: 30000
+      },
+      trackUserLocation: true,
+      showAccuracyCircle: false, // Nous allons créer notre propre cercle
+      showUserHeading: true
+    });
+
+    mapboxMap.addControl(this.geolocateControl);
+
+    // Ajouter une source GeoJSON pour le cercle d'exactitude
+    mapboxMap.addSource(this.locationGeoJSONSource, {
+      type: 'geojson',
+      data: {
+        type: 'FeatureCollection',
+        features: []
+      }
+    });
+
+    // Événements
+    this.geolocateControl.on('geolocate', (e: any) => {
+      this.onMapboxLocationFound(e);
+    });
+
+    this.geolocateControl.on('error', (e: any) => {
+      this.onMapboxLocationError(e);
+    });
+
+    // Déclencher la localisation
+    setTimeout(() => {
+      if (this.geolocateControl && this.isLocating) {
+        try {
+          this.geolocateControl.trigger();
+        } catch (err) {
+          console.error('Erreur lors du déclenchement de la géolocalisation:', err);
+          this.onMapboxLocationError({
+            message: 'Erreur lors de l\'initialisation de la localisation'
+          });
+        }
+      }
+    }, 500);
+  }
+
+  /**
+   * Gère l'événement de position trouvée avec Leaflet
+   */
+  private onLeafletLocationFound(e: L.LocationEvent): void {
+    if (!this.map) return;
+    const leafletMap = this.map as L.Map;
+
+    const radius = Math.round(e.accuracy);
+
+    // Supprimer les marqueurs précédents
+    if (this.locationMarker) {
+      leafletMap.removeLayer(this.locationMarker as L.Marker);
+    }
+
+    if (this.locationCircle) {
+      leafletMap.removeLayer(this.locationCircle);
+    }
+
+    // Créer le marqueur
+    this.locationMarker = L.marker(e.latlng, {
+      icon: L.divIcon({
+        className: 'user-location-marker',
+        html: '<div class="location-marker-inner"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      })
+    }).addTo(leafletMap);
+
+    // Créer le cercle
+    this.locationCircle = L.circle(e.latlng, {
+      radius: radius,
+      color: '#2196F3',
+      fillColor: '#2196F3',
+      fillOpacity: 0.15,
+      weight: 2
+    }).addTo(leafletMap);
+
+    // Mettre à jour les informations de localisation
+    this.userLocation = {
+      lat: e.latlng.lat,
+      lng: e.latlng.lng,
+      plusCode: this.placesService.generatePlusCode(e.latlng.lat, e.latlng.lng),
+      accuracy: e.accuracy
+    };
+
+    // Émettre l'événement
+    this.locationFound.emit({
+      latlng: e.latlng,
+      accuracy: e.accuracy
+    });
+  }
+
+  /**
+   * Gère l'événement de position trouvée avec Mapbox
+   */
+  private onMapboxLocationFound(e: any): void {
+    if (!this.map) return;
+    const mapboxMap = this.map as mapboxgl.Map;
+
+    const coords = [e.coords.longitude, e.coords.latitude];
+    const accuracy = e.coords.accuracy;
+
+    // Créer un marqueur pour la position
+    if (this.locationMarker) {
+      (this.locationMarker as mapboxgl.Marker).remove();
+    }
+
+    // Créer l'élément du marqueur
+    const el = document.createElement('div');
+    el.className = 'user-location-marker';
+    el.innerHTML = '<div class="location-marker-inner"></div>';
+    el.style.width = '20px';
+    el.style.height = '20px';
+    el.style.borderRadius = '50%';
+    el.style.backgroundColor = '#2196F3';
+    el.style.border = '2px solid white';
+    el.style.boxShadow = '0 0 0 2px rgba(33, 150, 243, 0.4)';
+
+    this.locationMarker = new mapboxgl.Marker({
+      element: el
+    })
+      .setLngLat(coords as [number, number])
+      .addTo(mapboxMap);
+
+    // Mettre à jour la source GeoJSON pour le cercle
+    const circleGeoJson = {
+      type: 'FeatureCollection',
+      features: [{
+        type: 'Feature',
+        geometry: {
+          type: 'Point',
+          coordinates: coords
+        },
+        properties: {
+          radius: accuracy
+        }
+      }]
+    };
+
+    (mapboxMap.getSource(this.locationGeoJSONSource) as mapboxgl.GeoJSONSource).setData(circleGeoJson as any);
+
+    // Ajouter la couche du cercle si elle n'existe pas encore
+    if (!mapboxMap.getLayer('accuracy-circle-layer')) {
+      mapboxMap.addLayer({
+        id: 'accuracy-circle-layer',
+        source: this.locationGeoJSONSource,
+        type: 'circle',
+        paint: {
+          'circle-radius': ['get', 'radius'],
+          'circle-color': '#2196F3',
+          'circle-opacity': 0.15,
+          'circle-stroke-width': 2,
+          'circle-stroke-color': '#2196F3'
+        }
+      });
+    }
+
+    // Mettre à jour les informations de localisation
+    this.userLocation = {
+      lat: e.coords.latitude,
+      lng: e.coords.longitude,
+      plusCode: this.placesService.generatePlusCode(e.coords.latitude, e.coords.longitude),
+      accuracy: e.coords.accuracy
+    };
+
+    // Émettre l'événement
+    this.locationFound.emit({
+      latlng: [e.coords.latitude, e.coords.longitude],
+      accuracy: e.coords.accuracy
+    });
+  }
+
+  /**
+   * Gère l'erreur de localisation avec Leaflet
+   */
+  private onLeafletLocationError(e: L.ErrorEvent): void {
+    console.error('Erreur de localisation Leaflet:', e.message);
+    this.isLocating = false;
+
+    this.locationError.emit(e);
+    this.showLocationError(e.code, e.message);
+  }
+
+  /**
+   * Gère l'erreur de localisation avec Mapbox
+   */
+  private onMapboxLocationError(e: any): void {
+    console.error('Erreur de localisation Mapbox:', e);
+    this.isLocating = false;
+
+    this.locationError.emit(e);
+
+    let errorCode = 0;
+    let errorMessage = e.message || 'Erreur inconnue';
+
+    if (errorMessage.includes('denied') || errorMessage.includes('permission')) {
+      errorCode = 1; // Permission denied
+    } else if (errorMessage.includes('unavailable') || errorMessage.includes('indisponible')) {
+      errorCode = 2; // Position unavailable
+    } else if (errorMessage.includes('timeout') || errorMessage.includes('expir')) {
+      errorCode = 3; // Timeout
+    }
+
+    this.showLocationError(errorCode, errorMessage);
+  }
+
+  /**
+   * Affiche un message d'erreur de localisation
+   */
+  private showLocationError(code: number, defaultMessage: string): void {
+    let message = "Impossible de déterminer votre position: ";
+    switch (code) {
+      case 1:
+        message += "Accès refusé. Veuillez autoriser l'accès à votre position dans les paramètres du navigateur.";
+        break;
+      case 2:
+        message += "Position indisponible. Vérifiez que votre GPS est activé.";
+        break;
+      case 3:
+        message += "Timeout expiré. Veuillez réessayer.";
+        break;
+      default:
+        message += defaultMessage;
+    }
+
+    this.errorMessage = message;
+  }
+
+  /**
+   * Nettoie les ressources de localisation
+   */
+  private cleanupLocationResources(): void {
+    if (!this.map) return;
+
+    if (this.providerType === MapProviderType.LEAFLET) {
+      const leafletMap = this.map as L.Map;
+
+      leafletMap.stopLocate();
+      leafletMap.off('locationfound');
+      leafletMap.off('locationerror');
+
+      if (this.locationMarker) {
+        (this.locationMarker as L.Marker).remove();
+        this.locationMarker = null;
+      }
+
+      if (this.locationCircle) {
+        this.locationCircle.remove();
+        this.locationCircle = null;
+      }
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      const mapboxMap = this.map as mapboxgl.Map;
+
+      if (this.geolocateControl) {
+        mapboxMap.removeControl(this.geolocateControl);
+        this.geolocateControl = null;
+      }
+
+      if (this.locationMarker) {
+        (this.locationMarker as mapboxgl.Marker).remove();
+        this.locationMarker = null;
+      }
+
+      if (mapboxMap.getLayer('accuracy-circle-layer')) {
+        mapboxMap.removeLayer('accuracy-circle-layer');
+      }
+
+      if (mapboxMap.getSource(this.locationGeoJSONSource)) {
+        mapboxMap.removeSource(this.locationGeoJSONSource);
+      }
+    }
+  }
+
+  /**
+   * Efface la localisation utilisateur
+   */
+  clearUserLocation(): void {
+    this.userLocation = null;
+    this.isLocating = false;
+    this.cleanupLocationResources();
   }
 }
