@@ -60,13 +60,18 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
   private mapboxMarkers: mapboxgl.Marker[] = [];
   private currentPosition: L.LatLng | [number, number] | null = null;
   private searchSubscription: Subscription | null = null;
+  private mapReadySubscription: Subscription | null = null;
+  private providerChangeHandler: (event: any) => void;
 
   constructor(
     private placesService: PlacesService,
     private mapService: MapService,
     private mapConfig: MapConfigService,
     @Optional() @Inject(MAPBOX_ACCESS_TOKEN) private mapboxToken: string
-  ) { }
+  ) {
+    // Définir le gestionnaire d'événement pour les changements de fournisseur
+    this.providerChangeHandler = this.handleProviderChange.bind(this);
+  }
 
   ngOnInit(): void {
     this.providerType = this.mapService.getCurrentProviderType();
@@ -79,23 +84,51 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     console.log('  - Jeton Mapbox (injecté):', this.mapboxToken ? 'Disponible' : 'Non disponible');
     console.log('  - Jeton Mapbox (config):', this.mapConfig.mapboxApiKey ? 'Disponible' : 'Non disponible');
 
-    if (this.map) {
-      if (this.providerType === MapProviderType.LEAFLET) {
-        const leafletMap = this.map as L.Map;
-        leafletMap.on('moveend', () => {
-          if (this.autoSearch) {
-            this.searchPlacesAtCenter();
+    // S'abonner aux événements de disponibilité de la carte
+    this.mapReadySubscription = this.mapService.mapReady$.subscribe(ready => {
+      if (ready) {
+        const mapInstance = this.mapService.getMap();
+        if (mapInstance) {
+          this.map = mapInstance;
+          this.providerType = this.mapService.getCurrentProviderType();
+          this.setupMapEventListeners();
+
+          // Si une recherche est en cours, la relancer avec le nouveau fournisseur
+          if (this.places.length > 0 && this.searched) {
+            this.removeMarkersFromMap();
+            this.addMarkersToMap(this.places);
           }
-        });
-      } else if (this.providerType === MapProviderType.MAPBOX) {
-        const mapboxMap = this.map as mapboxgl.Map;
-        mapboxMap.on('moveend', () => {
-          if (this.autoSearch) {
-            this.searchPlacesAtCenter();
+
+          // Si une zone est marquée, la redessiner avec le nouveau fournisseur
+          if (this.markedZone) {
+            const tempMarkedZone = { ...this.markedZone };
+            this.clearMarkedZone();
+            this.markedZone = tempMarkedZone;
+
+            // Recréer un faux "place" pour pouvoir appeler addLeafletZoneMarker/addMapboxZoneMarker
+            const place: Place = {
+              id: 'marked-zone',
+              name: this.markedZone.name,
+              lat: this.markedZone.lat,
+              lng: this.markedZone.lng,
+              type: 'marked',
+              plusCode: this.markedZone.plusCode
+            };
+
+            if (this.providerType === MapProviderType.LEAFLET) {
+              this.addLeafletZoneMarker(place);
+            } else {
+              this.addMapboxZoneMarker(place);
+            }
           }
-        });
+        }
       }
-    }
+    });
+
+    // Écouter les changements de fournisseur
+    document.addEventListener('map-provider-change', this.providerChangeHandler);
+
+    this.setupMapEventListeners();
 
     // Configuration de l'autocomplétion avec debounceTime
     this.suggestionsSubscription = this.searchTerms.pipe(
@@ -114,11 +147,11 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
         let lng: number | undefined;
 
         if (this.map) {
-          if (this.providerType === MapProviderType.LEAFLET) {
+          if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
             const center = (this.map as L.Map).getCenter();
             lat = center.lat;
             lng = center.lng;
-          } else {
+          } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
             const center = (this.map as mapboxgl.Map).getCenter();
             lat = center.lat;
             lng = center.lng;
@@ -148,8 +181,95 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     if (this.suggestionsSubscription) {
       this.suggestionsSubscription.unsubscribe();
     }
-    // Supprimer l'écouteur d'événements pour éviter les fuites de mémoire
+    if (this.mapReadySubscription) {
+      this.mapReadySubscription.unsubscribe();
+    }
+
+    // Supprimer les écouteurs d'événements
     document.removeEventListener('click', this.handleOutsideClick);
+    document.removeEventListener('map-provider-change', this.providerChangeHandler);
+
+    // Nettoyer les marqueurs de la carte
+    this.removeMarkersFromMap();
+    this.clearMarkedZone();
+  }
+
+  /**
+   * Gère les changements de fournisseur de carte
+   */
+  private handleProviderChange(event: any): void {
+    if (event.detail && typeof event.detail.providerType !== 'undefined') {
+      setTimeout(() => {
+        // Récupérer la nouvelle instance de la carte
+        const mapInstance = this.mapService.getMap();
+        if (mapInstance) {
+          // Nettoyer les ressources actuelles
+          this.removeMarkersFromMap();
+          this.clearMarkedZone();
+
+          // Mettre à jour les références
+          this.map = mapInstance;
+          this.providerType = this.mapService.getCurrentProviderType();
+
+          console.log('PlacesSearchComponent: Mise à jour du fournisseur de carte vers:', this.providerType);
+
+          // Réinitialiser les écouteurs d'événements
+          this.setupMapEventListeners();
+
+          // Recréer les marqueurs avec le nouveau fournisseur si nécessaire
+          if (this.places.length > 0) {
+            this.addMarkersToMap(this.places);
+          }
+
+          // Restaurer la zone marquée si elle existe
+          if (this.markedZone) {
+            const place: Place = {
+              id: 'marked-zone',
+              name: this.markedZone.name,
+              lat: this.markedZone.lat,
+              lng: this.markedZone.lng,
+              type: 'marked',
+              plusCode: this.markedZone.plusCode
+            };
+
+            if (this.providerType === MapProviderType.LEAFLET) {
+              this.addLeafletZoneMarker(place);
+            } else if (this.providerType === MapProviderType.MAPBOX) {
+              this.addMapboxZoneMarker(place);
+            }
+          }
+        }
+      }, 500); // Délai pour s'assurer que le changement est terminé
+    }
+  }
+
+  /**
+   * Configure les écouteurs d'événements pour la carte
+   */
+  private setupMapEventListeners(): void {
+    if (!this.map) return;
+
+    // Supprimer d'abord les écouteurs existants
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
+      const leafletMap = this.map as L.Map;
+      leafletMap.off('moveend');
+
+      // Ajouter le nouvel écouteur
+      leafletMap.on('moveend', () => {
+        if (this.autoSearch) {
+          this.searchPlacesAtCenter();
+        }
+      });
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
+      const mapboxMap = this.map as mapboxgl.Map;
+      // Mapbox n'a pas de méthode .off() directe, mais on peut utiliser un identificateur unique
+      // pour les gestionnaires d'événements. Pour simplifier, on ajoute simplement un nouveau gestionnaire.
+      mapboxMap.on('moveend', () => {
+        if (this.autoSearch) {
+          this.searchPlacesAtCenter();
+        }
+      });
+    }
   }
 
   // Gestionnaire pour les clics en dehors de la zone de suggestions
@@ -640,7 +760,7 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
    * Ajoute un marqueur de zone pour Mapbox
    */
   private addMapboxZoneMarker(place: Place): void {
-    if (!this.map) return;
+    if (!this.map || !(this.map instanceof mapboxgl.Map)) return;
     const mapboxMap = this.map as mapboxgl.Map;
 
     // Créer l'élément du marqueur
@@ -659,48 +779,92 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
       .setLngLat([place.lng, place.lat])
       .addTo(mapboxMap);
 
+    // Convertir le rayon en mètres vers des pixels
+    const pixelsPerMeter = this.metersToPixelsAtLatitude(100, place.lat, mapboxMap.getZoom());
+
     // Créer un cercle autour du marqueur
-    // Vérifier si la source GeoJSON existe déjà
     if (!mapboxMap.getSource(this.zoneGeoJSONSource)) {
-      mapboxMap.addSource(this.zoneGeoJSONSource, {
-        type: 'geojson',
-        data: {
+      try {
+        mapboxMap.addSource(this.zoneGeoJSONSource, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: {
+              type: 'Point',
+              coordinates: [place.lng, place.lat]
+            },
+            properties: {
+              radius_meters: 100, // 100m de rayon
+              radius_pixels: pixelsPerMeter
+            }
+          }
+        });
+
+        // Ajouter la couche de cercle
+        mapboxMap.addLayer({
+          id: 'marked-zone-circle',
+          source: this.zoneGeoJSONSource,
+          type: 'circle',
+          paint: {
+            'circle-radius': ['get', 'radius_pixels'],
+            'circle-color': '#4CAF50',
+            'circle-opacity': 0.15,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#4CAF50'
+          }
+        });
+
+        // Mettre à jour le rayon lors du zoom
+        mapboxMap.on('zoom', () => {
+          if (this.markedZone && this.map instanceof mapboxgl.Map) {
+            try {
+              const newPixels = this.metersToPixelsAtLatitude(
+                100,
+                this.markedZone.lat,
+                (this.map as mapboxgl.Map).getZoom()
+              );
+
+              const updatedData = {
+                type: 'Feature',
+                geometry: {
+                  type: 'Point',
+                  coordinates: [this.markedZone.lng, this.markedZone.lat]
+                },
+                properties: {
+                  radius_meters: 100,
+                  radius_pixels: newPixels
+                }
+              };
+
+              if (mapboxMap.getSource(this.zoneGeoJSONSource)) {
+                (mapboxMap.getSource(this.zoneGeoJSONSource) as mapboxgl.GeoJSONSource)
+                  .setData(updatedData as any);
+              }
+            } catch (error) {
+              console.error('Erreur lors de la mise à jour du rayon:', error);
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout du cercle de la zone:', error);
+      }
+    } else {
+      // Mettre à jour la source existante
+      try {
+        (mapboxMap.getSource(this.zoneGeoJSONSource) as mapboxgl.GeoJSONSource).setData({
           type: 'Feature',
           geometry: {
             type: 'Point',
             coordinates: [place.lng, place.lat]
           },
           properties: {
-            radius: 100 // 100m de rayon
+            radius_meters: 100,
+            radius_pixels: pixelsPerMeter
           }
-        }
-      });
-
-      // Ajouter la couche de cercle
-      mapboxMap.addLayer({
-        id: 'marked-zone-circle',
-        source: this.zoneGeoJSONSource,
-        type: 'circle',
-        paint: {
-          'circle-radius': 100,
-          'circle-color': '#4CAF50',
-          'circle-opacity': 0.15,
-          'circle-stroke-width': 2,
-          'circle-stroke-color': '#4CAF50'
-        }
-      });
-    } else {
-      // Mettre à jour la source existante
-      (mapboxMap.getSource(this.zoneGeoJSONSource) as mapboxgl.GeoJSONSource).setData({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [place.lng, place.lat]
-        },
-        properties: {
-          radius: 100
-        }
-      } as any);
+        } as any);
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour du cercle de la zone:', error);
+      }
     }
 
     // Centrer la carte sur le marqueur
@@ -721,6 +885,33 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
         </div>
       `)
       .addTo(mapboxMap);
+  }
+
+  /**
+   * Convertit une distance en mètres en pixels à une latitude et un niveau de zoom donnés
+   */
+  private metersToPixelsAtLatitude(meters: number, latitude: number, zoom: number): number {
+    // Rayon de la Terre en mètres
+    const earthRadius = 6378137;
+
+    // Largeur d'un pixel au zoom 0 en mètres
+    const meterPerPixelAtZoom0 = 2 * Math.PI * earthRadius / 512;
+
+    // Facteur d'échelle en fonction du zoom
+    const zoomScale = Math.pow(2, zoom);
+
+    // Ajustement pour la projection Mercator (dépend de la latitude)
+    const latitudeRadians = latitude * Math.PI / 180;
+    const latitudeAdjustment = Math.cos(latitudeRadians);
+
+    // Conversion finale: mètres -> pixels
+    // Pour éviter des cercles trop grands, on limite à 100 pixels maximum
+    const pixelRadius = Math.min(
+      meters / (meterPerPixelAtZoom0 / zoomScale) / latitudeAdjustment,
+      100
+    );
+
+    return pixelRadius;
   }
 
   /**
