@@ -414,16 +414,21 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     let centerLat: number;
     let centerLng: number;
 
-    if (this.providerType === MapProviderType.LEAFLET) {
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
       const center = (this.map as L.Map).getCenter();
       centerLat = center.lat;
       centerLng = center.lng;
       this.currentPosition = center;
-    } else {
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
       const center = (this.map as mapboxgl.Map).getCenter();
       centerLat = center.lat;
       centerLng = center.lng;
       this.currentPosition = [centerLat, centerLng];
+    } else {
+      console.error('Type de carte non reconnu ou carte non initialisée');
+      this.loading = false;
+      this.errorMessage = "Erreur: Carte non disponible";
+      return;
     }
 
     console.log(`Recherche de '${this.searchQuery}' à [${centerLat}, ${centerLng}] dans un rayon de ${this.searchRadius}m`);
@@ -441,9 +446,27 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     ).subscribe(
       places => {
         console.log(`Résultat de la recherche: ${places.length} lieux trouvés`, places);
-        this.places = places;
+
+        // Vérifier que les lieux ont des coordonnées valides
+        const validPlaces = places.filter(place =>
+          typeof place.lat === 'number' &&
+          typeof place.lng === 'number' &&
+          !isNaN(place.lat) &&
+          !isNaN(place.lng)
+        );
+
+        if (validPlaces.length < places.length) {
+          console.warn(`${places.length - validPlaces.length} lieux ignorés car ils n'ont pas de coordonnées valides`);
+        }
+
+        this.places = validPlaces;
         this.loading = false;
-        this.addMarkersToMap(places);
+
+        if (validPlaces.length > 0) {
+          this.addMarkersToMap(validPlaces);
+        } else {
+          this.errorMessage = "Aucun résultat trouvé avec des coordonnées valides";
+        }
       },
       error => {
         console.error('Erreur lors de la recherche des points d\'intérêt:', error);
@@ -532,23 +555,27 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
 
   // Méthode pour centrer la carte sur un lieu spécifique
   private centerMapOnPlace(place: Place): void {
-    if (!this.map || !place || place.lat === 0 && place.lng === 0) {
+    if (!this.map || !place ||
+      typeof place.lat !== 'number' || typeof place.lng !== 'number' ||
+      isNaN(place.lat) || isNaN(place.lng)) {
       console.warn('Impossible de centrer la carte: carte non disponible ou coordonnées invalides');
       return;
     }
 
     console.log(`Centrage de la carte sur: lat=${place.lat}, lng=${place.lng}`);
 
-    if (this.providerType === MapProviderType.LEAFLET) {
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
       const leafletMap = this.map as L.Map;
       leafletMap.setView([place.lat, place.lng], 16);
-    } else if (this.providerType === MapProviderType.MAPBOX) {
+      console.log(`Carte Leaflet centrée sur [${place.lat}, ${place.lng}]`);
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
       const mapboxMap = this.map as mapboxgl.Map;
       mapboxMap.flyTo({
         center: [place.lng, place.lat], // Mapbox utilise [lng, lat]
         zoom: 16,
         essential: true
       });
+      console.log(`Carte Mapbox centrée sur [${place.lng}, ${place.lat}]`);
     }
   }
 
@@ -569,56 +596,105 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
 
     if (!this.map) return;
 
-    if (this.providerType === MapProviderType.LEAFLET) {
+    if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
       // Utilisation de Leaflet
       this.markersLayer = L.layerGroup();
+      const leafletMap = this.map as L.Map;
 
       places.forEach(place => {
-        const marker = this.placesService.createPlaceMarker(place);
-        marker.on('click', () => this.selectPlace(place));
-        marker.addTo(this.markersLayer!);
-      });
+        if (typeof place.lat !== 'number' || typeof place.lng !== 'number' ||
+          isNaN(place.lat) || isNaN(place.lng)) {
+          console.warn(`Marqueur ignoré pour le lieu ${place.name} (${place.id}) - Coordonnées invalides: [${place.lat}, ${place.lng}]`);
+          return;
+        }
 
-      (this.map as L.Map).addLayer(this.markersLayer);
-    } else if (this.providerType === MapProviderType.MAPBOX) {
-      // Utilisation de Mapbox
-      const mapboxMap = this.map as mapboxgl.Map;
+        try {
+          // Utiliser directement L.marker au lieu de passer par le service
+          const marker = L.marker([place.lat, place.lng], {
+            title: place.name,
+            // Utiliser une icône personnalisée basée sur le type
+            icon: L.divIcon({
+              className: `custom-div-icon ${this.getMarkerClass(place.type)}`,
+              html: `<i class="fas ${this.getIconClass(place.type)}"></i>`,
+              iconSize: [30, 30],
+              iconAnchor: [15, 15]
+            })
+          });
 
-      places.forEach(place => {
-        // Création d'un élément DOM personnalisé pour le marqueur
-        const el = document.createElement('div');
-        el.className = 'mapbox-custom-marker';
-        el.innerHTML = `<i class="fas ${this.getIconClass(place.type)}"></i>`;
-
-        // Style pour le marqueur
-        el.style.color = this.getMarkerColor(place.type);
-        el.style.fontSize = '20px';
-        el.style.cursor = 'pointer';
-
-        // Créer et ajouter le marqueur à la carte
-        const marker = new mapboxgl.Marker(el)
-          .setLngLat([place.lng, place.lat])
-          .addTo(mapboxMap);
-
-        // Ajouter un popup avec les informations
-        if (place.name || place.address) {
-          const popup = new mapboxgl.Popup({ offset: 25 })
-            .setHTML(`
+          // Ajouter un popup
+          if (place.name || place.address) {
+            marker.bindPopup(`
               <div>
                 <h4>${place.name}</h4>
                 ${place.address ? `<p>${place.address}</p>` : ''}
                 ${place.rating ? `<p><i class="fas fa-star"></i> ${place.rating}</p>` : ''}
+                <p>Lat: ${place.lat.toFixed(6)}, Lng: ${place.lng.toFixed(6)}</p>
               </div>
             `);
+          }
 
-          marker.setPopup(popup);
+          marker.on('click', () => this.selectPlace(place));
+          marker.addTo(this.markersLayer!);
+
+          console.log(`Marqueur Leaflet ajouté pour ${place.name} à [${place.lat}, ${place.lng}]`);
+        } catch (error) {
+          console.error(`Erreur lors de l'ajout du marqueur pour ${place.name}:`, error);
+        }
+      });
+
+      leafletMap.addLayer(this.markersLayer);
+    } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
+      // Utilisation de Mapbox
+      const mapboxMap = this.map as mapboxgl.Map;
+
+      places.forEach(place => {
+        if (typeof place.lat !== 'number' || typeof place.lng !== 'number' ||
+          isNaN(place.lat) || isNaN(place.lng)) {
+          console.warn(`Marqueur ignoré pour le lieu ${place.name} (${place.id}) - Coordonnées invalides: [${place.lat}, ${place.lng}]`);
+          return;
         }
 
-        // Ajouter un écouteur d'événement pour la sélection
-        el.addEventListener('click', () => this.selectPlace(place));
+        try {
+          // Création d'un élément DOM personnalisé pour le marqueur
+          const el = document.createElement('div');
+          el.className = 'mapbox-custom-marker';
+          el.innerHTML = `<i class="fas ${this.getIconClass(place.type)}"></i>`;
 
-        // Stocker le marqueur pour pouvoir le supprimer plus tard
-        this.mapboxMarkers.push(marker);
+          // Style pour le marqueur
+          el.style.color = this.getMarkerColor(place.type);
+          el.style.fontSize = '20px';
+          el.style.cursor = 'pointer';
+
+          // Créer et ajouter le marqueur à la carte
+          const marker = new mapboxgl.Marker(el)
+            .setLngLat([place.lng, place.lat])
+            .addTo(mapboxMap);
+
+          // Ajouter un popup avec les informations
+          if (place.name || place.address) {
+            const popup = new mapboxgl.Popup({ offset: 25 })
+              .setHTML(`
+                <div>
+                  <h4>${place.name}</h4>
+                  ${place.address ? `<p>${place.address}</p>` : ''}
+                  ${place.rating ? `<p><i class="fas fa-star"></i> ${place.rating}</p>` : ''}
+                  <p>Lat: ${place.lat.toFixed(6)}, Lng: ${place.lng.toFixed(6)}</p>
+                </div>
+              `);
+
+            marker.setPopup(popup);
+          }
+
+          // Ajouter un écouteur d'événement pour la sélection
+          el.addEventListener('click', () => this.selectPlace(place));
+
+          // Stocker le marqueur pour pouvoir le supprimer plus tard
+          this.mapboxMarkers.push(marker);
+
+          console.log(`Marqueur Mapbox ajouté pour ${place.name} à [${place.lng}, ${place.lat}]`);
+        } catch (error) {
+          console.error(`Erreur lors de l'ajout du marqueur pour ${place.name}:`, error);
+        }
       });
     }
   }
@@ -676,6 +752,21 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
     return colorMap[type] || colorMap['default'];
   }
 
+  // Ajouter une méthode pour définir la classe CSS du marqueur selon le type
+  getMarkerClass(type: string): string {
+    const typeClasses: { [key: string]: string } = {
+      restaurant: 'restaurant-marker',
+      cafe: 'cafe-marker',
+      bar: 'bar-marker',
+      store: 'store-marker',
+      shopping_mall: 'mall-marker',
+      hotel: 'hotel-marker',
+      default: 'default-marker'
+    };
+
+    return typeClasses[type] || typeClasses['default'];
+  }
+
   /**
    * Marque une zone sur la carte et affiche les détails
    */
@@ -721,39 +812,51 @@ export class PlacesSearchComponent implements OnInit, OnDestroy {
    * Ajoute un marqueur de zone pour Leaflet
    */
   private addLeafletZoneMarker(place: Place): void {
-    if (!this.map) return;
+    if (!this.map || !(this.map instanceof L.Map)) return;
     const leafletMap = this.map as L.Map;
 
-    // Créer le marqueur avec une icône distinctive
-    this.zoneMarker = L.marker([place.lat, place.lng], {
-      icon: L.divIcon({
-        className: 'marked-zone-icon',
-        html: '<div class="marked-zone-inner"></div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
-      })
-    }).addTo(leafletMap);
+    try {
+      // Vérifier que les coordonnées sont valides
+      if (typeof place.lat !== 'number' || typeof place.lng !== 'number' ||
+        isNaN(place.lat) || isNaN(place.lng)) {
+        console.error(`Coordonnées invalides pour la zone marquée: [${place.lat}, ${place.lng}]`);
+        return;
+      }
 
-    // Ajouter un cercle autour du marqueur
-    this.zoneCircle = L.circle([place.lat, place.lng], {
-      radius: 100, // Rayon de 100m
-      color: '#4CAF50',
-      fillColor: '#4CAF50',
-      fillOpacity: 0.15,
-      weight: 2
-    }).addTo(leafletMap);
+      // Créer le marqueur avec une icône distinctive
+      this.zoneMarker = L.marker([place.lat, place.lng], {
+        icon: L.divIcon({
+          className: 'marked-zone-icon',
+          html: '<div class="marked-zone-inner"></div>',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        })
+      }).addTo(leafletMap);
 
-    // Centrer la carte sur le marqueur
-    leafletMap.setView([place.lat, place.lng], 16);
+      // Ajouter un cercle autour du marqueur
+      this.zoneCircle = L.circle([place.lat, place.lng], {
+        radius: 100, // Rayon de 100m
+        color: '#4CAF50',
+        fillColor: '#4CAF50',
+        fillOpacity: 0.15,
+        weight: 2
+      }).addTo(leafletMap);
 
-    // Ajouter un popup avec les informations
-    this.zoneMarker.bindPopup(`
-      <div class="marked-zone-popup">
-        <h3>${place.name}</h3>
-        <p>Coordonnées: ${place.lat.toFixed(6)}, ${place.lng.toFixed(6)}</p>
-        <p>Plus Code: ${place.plusCode || this.placesService.generatePlusCode(place.lat, place.lng)}</p>
-      </div>
-    `).openPopup();
+      // Centrer la carte sur le marqueur
+      leafletMap.setView([place.lat, place.lng], 16);
+      console.log(`Zone Leaflet marquée à [${place.lat}, ${place.lng}]`);
+
+      // Ajouter un popup avec les informations
+      this.zoneMarker.bindPopup(`
+        <div class="marked-zone-popup">
+          <h3>${place.name}</h3>
+          <p>Coordonnées: ${place.lat.toFixed(6)}, ${place.lng.toFixed(6)}</p>
+          <p>Plus Code: ${place.plusCode || this.placesService.generatePlusCode(place.lat, place.lng)}</p>
+        </div>
+      `).openPopup();
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout du marqueur de zone Leaflet:', error);
+    }
   }
 
   /**

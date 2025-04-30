@@ -229,7 +229,7 @@ export class MapControlsComponent implements OnInit, OnDestroy {
 
 
     const mapboxStyles = {
-      [MapViewType.DEFAULT]: 'mapbox://styles/mapbox/streets-v11',
+      [MapViewType.DEFAULT]: 'mapbox://styles/mapbox/standard',
       [MapViewType.SATELLITE]: 'mapbox://styles/mapbox/satellite-v9',
       [MapViewType.GOOGLE]: 'mapbox://styles/mapbox/navigation-day-v1'
     };
