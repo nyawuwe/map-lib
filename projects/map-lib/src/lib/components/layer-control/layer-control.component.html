@@ -1,8 +1,10 @@
 <div class="map-layer-control">
-  <button class="map-control-button layer-control-button" [class.active]="isExpanded" (click)="toggleControl($event)"
-    aria-label="Contrôle de couches" title="Contrôle de couches">
-    <i class="fas fa-layer-group"></i>
-  </button>
+  <div class="map-layer-container">
+    <button class="map-control-button layer-control-button" [class.active]="isExpanded" (click)="toggleControl($event)"
+      aria-label="Contrôle de couches" title="Contrôle de couches">
+      <i class="fas fa-layer-group"></i>
+    </button>
+  </div>
 
   <div *ngIf="isExpanded" class="layer-control-menu" [@fadeIn]>
     <!-- Section Fournisseur de carte -->

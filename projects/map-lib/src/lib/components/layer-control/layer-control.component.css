@@ -1,25 +1,40 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
+.map-layer-container {
+  position: absolute;
+  top: 70px;
+  right: 10px;
+  z-index: 1000;
+  width: 56px;
+  height: 56px;
+  background-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
 
 .map-control-button {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 8px;
   border: none;
-  background-color: white;
-  color: #333;
+  background-color: #FE6B04;
+  color: #ffffff;
   font-size: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: all 0.2s ease;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: none;
 }
 
 .map-control-button:hover {
   background-color: #f0f0f0;
   transform: translateY(-2px);
+  color: #FE6B04;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -35,17 +50,18 @@
 }
 
 .layer-control-button {
-  color: #ff9800;
+  color: #ffffff;
 }
 
 .layer-control-button.active {
-  background-color: #ff9800;
-  color: white;
+  background-color: #ffffff;
+  color: #FE6B04;
 }
 
 .layer-control-menu {
+  border-top: 4px solid #FE6B04;
   position: absolute;
-  top: 50px;
+  top: 80px;
   right: 0;
   background-color: white;
   border-radius: 8px;

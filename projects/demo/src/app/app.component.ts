@@ -62,12 +62,6 @@ import { MapLibModule, MapLibOptions } from 'map-lib';
       border-radius: 4px;
       overflow: hidden;
     }
-    .controls-panel {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      z-index: 1000;
-    }
   `]
 })
 export class AppComponent {
