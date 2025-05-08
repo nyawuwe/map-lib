@@ -1,6 +1,7 @@
 .plus-code-container {
   position: absolute;
   left: 50%;
+  border-top: 4px solid #2196F3;
   bottom: 20px;
   right: auto;
   top: auto;

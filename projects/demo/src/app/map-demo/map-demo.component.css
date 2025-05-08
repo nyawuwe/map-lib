@@ -1,5 +1,7 @@
 .demo-container {
   padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 h2 {
@@ -13,6 +15,7 @@ h2 {
   border: 1px solid #ccc;
   border-radius: 4px;
   overflow: hidden;
+  margin-bottom: 1.5rem;
 }
 
 .controls {
@@ -20,4 +23,65 @@ h2 {
   top: 10px;
   right: 10px;
   z-index: 1000;
+}
+
+/* Styles pour le panneau de contrôle */
+.controls-panel {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  flex-wrap: wrap;
+}
+
+.control-btn {
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 15px;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.2s;
+}
+
+.control-btn:hover {
+  background-color: #2980b9;
+}
+
+.control-btn i {
+  margin-right: 8px;
+}
+
+/* Styles pour le panneau d'information */
+.info-panel {
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 15px;
+  margin-bottom: 20px;
+}
+
+.info-panel h3 {
+  color: #2c3e50;
+  margin-top: 0;
+  margin-bottom: 10px;
+  font-size: 18px;
+}
+
+.info-panel ul {
+  margin: 0;
+  padding-left: 25px;
+}
+
+.info-panel li {
+  margin-bottom: 5px;
+  color: #555;
+}
+
+.info-panel p {
+  margin-top: 15px;
+  color: #666;
+  font-style: italic;
 }

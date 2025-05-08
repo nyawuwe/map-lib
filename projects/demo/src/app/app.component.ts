@@ -20,9 +20,6 @@ import { MapLibModule, MapLibOptions } from 'map-lib';
         <h2>Carte de base</h2>
         <div class="map-wrapper">
           <lib-map [options]="mapOptions"></lib-map>
-          <div class="controls-panel">
-            <lib-layer-control></lib-layer-control>
-          </div>
         </div>
       </div>
 
@@ -68,7 +65,7 @@ export class AppComponent {
   title = 'demo';
 
   mapOptions: MapLibOptions = {
-    center: [48.864716, 2.349014], // Paris
+    center: [48.864716, 2.349014],
     zoom: 8,
     maxZoom: 18,
     minZoom: 3

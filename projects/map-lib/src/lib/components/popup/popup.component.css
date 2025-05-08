@@ -1,24 +1,54 @@
 .map-popup-card {
-  width: 280px;
+  width: 320px;
   max-width: 100%;
   background-color: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: 'Poppins', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
 
 .map-popup-header {
-  background-color: #3498db;
-  color: white;
-  padding: 10px 15px;
+  align-items: center;
+  gap: 10px;
+  display: flex;
+  background-color: #fff;
+  color: #333;
+  padding: 16px 16px 8px 16px;
 }
 
 .map-popup-title {
   margin: 0;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
+  color: #000;
 }
+
+/* Badge de certification */
+.map-popup-certified {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 10px;
+  padding: 10px;
+}
+
+.map-popup-certified i {
+  color: #0073e6;
+}
+
+.certified-badge {
+  background-color: #e6f3ff;
+  color: #0073e6;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+}
+
+
 
 .map-popup-body {
   padding: 0;
@@ -26,7 +56,7 @@
 
 .map-popup-image-container {
   width: 100%;
-  height: 140px;
+  height: 100px;
   overflow: hidden;
   background-color: #f5f5f5;
 }
@@ -38,7 +68,8 @@
 }
 
 .map-popup-content {
-  padding: 15px;
+  padding: 0 16px 16px 16px;
+  position: relative;
 }
 
 .map-popup-description {
@@ -51,22 +82,162 @@
 .map-popup-details {
   font-size: 13px;
   color: #555;
+  margin-bottom: 15px;
 }
 
 .map-popup-detail-item {
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 6px;
+}
+
+.map-popup-detail-label-container {
+  flex: 1;
 }
 
 .map-popup-detail-label {
-  font-weight: 600;
-  margin-right: 5px;
-  min-width: 70px;
+  font-weight: 500;
+  color: #333;
+}
+
+.map-popup-detail-value-container {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
 }
 
 .map-popup-detail-value {
-  flex: 1;
+  color: #555;
+  font-weight: 400;
+  text-align: right;
 }
+
+/* Bouton de copie */
+.map-popup-copy-btn {
+  border: none;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #0073e6;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.map-popup-copy-btn:hover {
+  background-color: #e0e0e0;
+}
+
+/* Notification de copie */
+.map-popup-notification {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background-color: rgba(39, 174, 96, 0.9);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  animation: fadeOut 2s forwards;
+}
+
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+
+  70% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Container des boutons d'action */
+.map-popup-actions-container {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.map-popup-action-btn-wrapper {
+  display: flex;
+  gap: 8px;
+}
+
+/* Boutons d'action circulaires */
+.map-popup-direction-btn,
+.map-popup-favorite-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.map-popup-direction-btn i,
+.map-popup-favorite-btn i {
+  font-size: 20px;
+}
+
+.map-popup-favorite-btn i {
+  color: #ffffff;
+}
+
+.map-popup-direction-btn {
+  background-color: #fff;
+  color: #0073e6;
+  transition: all 0.2s;
+}
+
+.map-popup-favorite-btn {
+  background-color: #0073e6;
+  color: white;
+  transition: all 0.2s;
+}
+
+.map-popup-direction-btn:hover {
+  background-color: #f8f8f8;
+}
+
+.map-popup-favorite-btn:hover {
+  background-color: #0066cc;
+}
+
+.map-popup-favorite-btn:hover i {
+  color: #ffffff;
+}
+
+/* Icônes pour les boutons d'action */
+.map-icon-favorite::before {
+  content: "★";
+  font-size: 16px;
+}
+
+.map-icon-directions::before {
+  content: "↱";
+  font-size: 18px;
+  font-weight: bold;
+}
+
+/* État actif du bouton favori */
+.favorite-active {
+  background-color: #f0f0f0;
+  color: #0073e6;
+}
+
+.favorite-active i {
+  color: #0073e6;
+}
+
 
 /* Override default Leaflet popup styles */
 :host ::ng-deep .leaflet-popup-content-wrapper {
@@ -96,9 +267,9 @@
 }
 
 :host ::ng-deep .leaflet-popup-close-button {
-  color: white;
+  color: #666;
   top: 10px;
   right: 10px;
-  font-size: 20px;
+  font-size: 16px;
   z-index: 1000;
 }

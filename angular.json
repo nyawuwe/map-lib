@@ -12,7 +12,8 @@
         "build": {
           "builder": "@angular-devkit/build-angular:ng-packagr",
           "options": {
-            "project": "projects/map-lib/ng-package.json"
+            "project": "projects/map-lib/ng-package.json",
+            "watch": true
           },
           "configurations": {
             "production": {
@@ -63,7 +64,8 @@
               "node_modules/leaflet/dist/leaflet.css",
               "projects/demo/src/styles.css"
             ],
-            "scripts": []
+            "scripts": [],
+            "preserveSymlinks": true
           },
           "configurations": {
             "production": {

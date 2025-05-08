@@ -1,7 +1,28 @@
 <div class="demo-container">
   <h2>Carte avec la couche des marqueurs</h2>
+
+  <div class="controls-panel">
+    <button class="control-btn" (click)="showAllFavorites()">
+      <i class="fas fa-star"></i> Afficher les favoris
+    </button>
+    <button class="control-btn" (click)="addCurrentPositionMarker()">
+      <i class="fas fa-map-marker-alt"></i> Ma position
+    </button>
+  </div>
+
   <div class="map-container">
     <lib-map [options]="mapOptions" #mapComponent></lib-map>
     <lib-places-search [map]="mapComponent?.map ?? null"></lib-places-search>
+  </div>
+
+  <div class="info-panel">
+    <h3>Fonctionnalités des popups</h3>
+    <ul>
+      <li>Badge "Certifié" pour les lieux vérifiés</li>
+      <li>Boutons "copier" pour le code postal, plus code et coordonnées GPS</li>
+      <li>Bouton pour ajouter/retirer des favoris</li>
+      <li>Bouton pour obtenir l'itinéraire vers le lieu</li>
+    </ul>
+    <p>Cliquez sur les marqueurs pour tester les nouvelles fonctionnalités!</p>
   </div>
 </div>

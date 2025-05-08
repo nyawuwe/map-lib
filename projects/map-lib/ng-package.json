@@ -3,5 +3,9 @@
   "dest": "../../dist/map-lib",
   "lib": {
     "entryFile": "src/public-api.ts"
-  }
+  },
+  "allowedNonPeerDependencies": [
+    "tslib",
+    "@phosphor-icons/web"
+  ]
 }

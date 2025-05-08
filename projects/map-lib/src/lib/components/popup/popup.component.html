@@ -1,23 +1,57 @@
 <div class="map-popup-card">
+
+
+  <div class="map-popup-body">
+    <div class="map-popup-image-container" *ngIf="popupInfo.imageSrc || defaultImageUrl">
+      <img [src]="popupInfo.imageSrc || defaultImageUrl" [alt]="popupInfo.imageAlt || 'Location'"
+        class="map-popup-image">
+    </div>
+
     <div class="map-popup-header">
-        <h3 class="map-popup-title">{{ popupInfo.title }}</h3>
+      <h3 class="map-popup-title">{{ popupInfo.title }}</h3>
+
+      <!-- Actions du popup à droite -->
+      <div class="map-popup-actions-container">
+        <div class="map-popup-action-btn-wrapper">
+          <button class="map-popup-direction-btn" (click)="openDirections()">
+            <i class="ph-fill ph-path"></i>
+          </button>
+
+          <button class="map-popup-favorite-btn" [class.favorite-active]="isFavorite" (click)="toggleFavorite()">
+            <i class="ph ph-bookmark-simple" [class.ph-fill]="isFavorite"></i>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="map-popup-body">
-        <div class="map-popup-image-container" *ngIf="popupInfo.imageSrc || defaultImageUrl">
-            <img [src]="popupInfo.imageSrc || defaultImageUrl" [alt]="popupInfo.imageAlt || 'Location'"
-                class="map-popup-image">
-        </div>
+    <div class="map-popup-content">
+      <!-- Badge certifié sous le titre -->
+      <div *ngIf="popupInfo.certified" class="map-popup-certified">
+        <span class="certified-badge">Certifié<i class="ph-fill ph-seal-check"></i></span>
+      </div>
 
-        <div class="map-popup-content">
-            <p *ngIf="popupInfo.description" class="map-popup-description">{{ popupInfo.description }}</p>
+      <p *ngIf="popupInfo.description" class="map-popup-description">{{ popupInfo.description }}</p>
 
-            <div *ngIf="popupInfo.details" class="map-popup-details">
-                <div *ngFor="let item of detailItems" class="map-popup-detail-item">
-                    <span class="map-popup-detail-label">{{ item.label }}:</span>
-                    <span class="map-popup-detail-value">{{ item.value }}</span>
-                </div>
-            </div>
+      <!-- Détails avec boutons de copie -->
+      <div *ngIf="detailItems.length > 0" class="map-popup-details">
+        <div *ngFor="let item of detailItems" class="map-popup-detail-item">
+          <div class="map-popup-detail-label-container">
+            <span class="map-popup-detail-label">{{ item.label }}</span>
+          </div>
+          <div class="map-popup-detail-value-container">
+            <span class="map-popup-detail-value">{{ item.value }}</span>
+            <button *ngIf="item.canCopy" class="map-popup-copy-btn" (click)="copyToClipboard(item.value)">
+              copier
+            </button>
+          </div>
         </div>
+      </div>
+
+      <!-- Notification de copie -->
+      <div *ngIf="showCopyNotification" class="map-popup-notification">
+        {{ copiedMessage }}
+      </div>
+
     </div>
+  </div>
 </div>

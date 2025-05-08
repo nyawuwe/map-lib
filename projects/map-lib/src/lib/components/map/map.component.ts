@@ -9,6 +9,10 @@ import { MapProviderOptions, MapProviderType } from '../../models/map-provider.m
 import { LayerControlComponent } from '../layer-control/layer-control.component';
 import { LayerInfo } from '../../models/layer-info.model';
 import { MapConfigService } from '../../services/map-config.service';
+import { PopupActionsService, FavoritePlace } from '../../services/popup-actions.service';
+import { PopupService } from '../../services/popup.service';
+import { PopupInfo } from '../../models/popup-info.model';
+import { Subscription } from 'rxjs';
 
 @Component({
   selector: 'lib-map',
@@ -28,12 +32,16 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   map: any = null;
   mapProviderType: MapProviderType = MapProviderType.LEAFLET;
   private providerChangeEventListener: () => void = () => { };
+  private favoriteMarkersLayer: any;
+  private favoritesSubscription: Subscription | null = null;
 
   constructor(
     private mapService: MapService,
     private changeDetectorRef: ChangeDetectorRef,
     private mapConfig: MapConfigService,
-    private renderer: Renderer2
+    private renderer: Renderer2,
+    private popupActionsService: PopupActionsService,
+    private popupService: PopupService
   ) {
     console.log('MapComponent created');
   }
@@ -50,8 +58,10 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     }
 
     this.initMap();
-
     this.setupProviderChangeListener();
+
+    // S'abonner aux changements des favoris
+    this.initFavoritesLayer();
   }
 
   ngAfterViewInit(): void {
@@ -75,10 +85,71 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.providerChangeEventListener();
 
+    // Désabonner des favoris
+    if (this.favoritesSubscription) {
+      this.favoritesSubscription.unsubscribe();
+    }
+
     if (this.map) {
       if (this.mapProviderType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
         this.map.remove();
       }
+    }
+  }
+
+  /**
+   * Initialiser la couche des favoris et s'abonner aux changements
+   */
+  private initFavoritesLayer(): void {
+    if (this.mapProviderType === MapProviderType.LEAFLET) {
+      // Créer une couche pour les favoris
+      this.favoriteMarkersLayer = L.layerGroup();
+      this.favoriteMarkersLayer.addTo(this.map);
+
+      // S'abonner aux changements des favoris
+      this.favoritesSubscription = this.popupActionsService.getFavorites().subscribe(favorites => {
+        this.updateFavoritesLayer(favorites);
+      });
+    }
+  }
+
+  /**
+   * Mettre à jour la couche des favoris sur la carte
+   */
+  private updateFavoritesLayer(favorites: FavoritePlace[]): void {
+    if (!this.map || !this.favoriteMarkersLayer) return;
+
+    if (this.mapProviderType === MapProviderType.LEAFLET) {
+      // Vider la couche actuelle
+      this.favoriteMarkersLayer.clearLayers();
+
+      // Ajouter les marqueurs pour chaque favori
+      favorites.forEach(favorite => {
+        // Créer un popup pour ce favori
+        const popupInfo: PopupInfo = {
+          title: favorite.title,
+          certified: false,
+          gpsPosition: {
+            latitude: favorite.latitude,
+            longitude: favorite.longitude
+          }
+        };
+
+        // Créer le marqueur avec une icône spéciale pour les favoris
+        const markerOptions: L.MarkerOptions = {
+          title: favorite.title,
+          alt: favorite.title,
+          riseOnHover: true
+        };
+
+        const marker = L.marker([favorite.latitude, favorite.longitude], markerOptions);
+
+        // Ajouter le popup au marqueur
+        this.popupService.bindPopupToMarker(marker, popupInfo);
+
+        // Ajouter le marqueur à la couche des favoris
+        marker.addTo(this.favoriteMarkersLayer);
+      });
     }
   }
 
@@ -140,6 +211,12 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
       console.log(`MapComponent: Position actuelle: ${JSON.stringify(mapCenter)}, zoom: ${mapZoom}`);
 
+      // Désabonner des favoris
+      if (this.favoritesSubscription) {
+        this.favoritesSubscription.unsubscribe();
+        this.favoritesSubscription = null;
+      }
+
       this.mapService.destroyMap();
       this.map = null;
 
@@ -176,6 +253,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
       this.map = this.mapService.initMap(this.mapContainer.nativeElement, newOptions, newProviderOptions);
       this.mapProviderType = this.mapService.getCurrentProviderType();
+
+      // Réinitialiser la couche des favoris
+      this.initFavoritesLayer();
 
       // Diffuser l'événement de changement de fournisseur
       const providerChangeEvent = new CustomEvent('map-provider-change', {
@@ -241,6 +321,60 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     } catch (error) {
       console.error('MapComponent: Erreur lors du changement de fournisseur:', error);
     }
+  }
+
+  /**
+   * Ajouter un marqueur pour un lieu avec popup
+   */
+  addMarkerWithPopup(title: string, lat: number, lng: number, options?: any): void {
+    if (!this.map) return;
+
+    if (this.mapProviderType === MapProviderType.LEAFLET) {
+      const popupInfo: PopupInfo = {
+        title: title,
+        certified: options?.certified || false,
+        postalCode: options?.postalCode,
+        plusCode: options?.plusCode,
+        gpsPosition: {
+          latitude: lat,
+          longitude: lng
+        },
+        imageSrc: options?.imageSrc,
+        description: options?.description,
+        details: options?.details
+      };
+
+      const marker = L.marker([lat, lng], {
+        title: title,
+        alt: title,
+        riseOnHover: true
+      });
+
+      this.popupService.bindPopupToMarker(marker, popupInfo);
+      marker.addTo(this.map);
+    }
+  }
+
+  /**
+   * Montrer tous les favoris sur la carte avec zoom
+   */
+  showAllFavorites(): void {
+    this.popupActionsService.getFavorites().subscribe(favorites => {
+      if (favorites.length === 0) return;
+
+      if (this.mapProviderType === MapProviderType.LEAFLET) {
+        // Créer un groupe de coordonnées pour le zoom
+        const group = L.featureGroup();
+
+        // Ajouter chaque favori au groupe
+        favorites.forEach(favorite => {
+          L.marker([favorite.latitude, favorite.longitude]).addTo(group);
+        });
+
+        // Zoom sur tous les favoris
+        this.map.fitBounds(group.getBounds(), { padding: [50, 50] });
+      }
+    });
   }
 
   private initMap(): void {
