@@ -4,13 +4,14 @@ import { PopupInfo } from '../models/popup-info.model';
 import { PopupService } from './popup.service';
 
 export interface IconOptions {
-  iconClass: string;
+  iconClass?: string;
   iconColor?: string;
   markerColor?: string;
   iconSize?: L.PointExpression;
   iconAnchor?: L.PointExpression;
   popupAnchor?: L.PointExpression;
   shadowUrl?: string;
+  imageUrl?: string;
 }
 
 @Injectable({
@@ -34,6 +35,22 @@ export class IconService {
 
     const opts = { ...defaults, ...options };
 
+    if (opts.imageUrl) {
+      return L.divIcon({
+        html: `
+          <div class="custom-div-icon">
+            <div class="marker-pin" style="background-color: ${opts.markerColor};">
+              <img src="${opts.imageUrl}" style="width: 100%; height: 100%; height: auto !important; object-fit: contain;">
+            </div>
+          </div>
+        `,
+        iconSize: opts.iconSize,
+        iconAnchor: opts.iconAnchor,
+        popupAnchor: opts.popupAnchor,
+        className: 'custom-div-icon'
+      });
+    }
+
     return L.divIcon({
       html: `
         <div class="custom-div-icon">
@@ -50,26 +67,59 @@ export class IconService {
   }
 
   /**
-   * Crée un marqueur avec une icône Font Awesome et un popup personnalisé
+   * Crée une icône Leaflet basée sur une image
+   */
+  createImageIcon(options: IconOptions): L.Icon {
+    const defaults = {
+      iconSize: [25, 41] as L.PointExpression,
+      iconAnchor: [12, 41] as L.PointExpression,
+      popupAnchor: [1, -34] as L.PointExpression
+    };
+
+    const opts = { ...defaults, ...options };
+
+    if (!opts.imageUrl) {
+      throw new Error("L'URL de l'image est requise pour créer une icône d'image");
+    }
+
+    return L.icon({
+      iconUrl: opts.imageUrl,
+      iconSize: opts.iconSize,
+      iconAnchor: opts.iconAnchor,
+      popupAnchor: opts.popupAnchor,
+      shadowUrl: opts.shadowUrl
+    });
+  }
+
+  /**
+   * Crée un marqueur avec une icône Font Awesome ou une image et un popup personnalisé
    */
   createMarkerWithIcon(
     latLng: L.LatLngExpression,
     iconOptions: IconOptions,
     popupInfo?: PopupInfo | string
   ): L.Marker {
-    const icon = this.createFontAwesomeIcon(iconOptions);
+    let icon: L.Icon | L.DivIcon;
+
+    if (iconOptions.imageUrl && !iconOptions.iconClass) {
+      icon = this.createImageIcon(iconOptions);
+    } else {
+      if (!iconOptions.iconClass) {
+        iconOptions.iconClass = 'fas fa-map-marker';
+      }
+      icon = this.createFontAwesomeIcon(iconOptions);
+    }
+
     const marker = L.marker(latLng, { icon });
 
     if (popupInfo) {
       if (typeof popupInfo === 'string') {
-        // Convertir le texte simple en objet PopupInfo
         const popupInfoObj: PopupInfo = {
-          title: iconOptions.iconClass.split(' ').pop() || 'Location',
+          title: iconOptions.iconClass ? (iconOptions.iconClass.split(' ').pop() || 'Location') : 'Location',
           description: popupInfo
         };
         this.popupService.bindPopupToMarker(marker, popupInfoObj);
       } else {
-        // Utiliser l'objet PopupInfo directement
         this.popupService.bindPopupToMarker(marker, popupInfo);
       }
     }

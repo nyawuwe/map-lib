@@ -2,7 +2,7 @@
 
 .map-layer-container {
   position: absolute;
-  top: 70px;
+  top: 0px;
   right: 10px;
   z-index: 1000;
   background-color: #ffffff;

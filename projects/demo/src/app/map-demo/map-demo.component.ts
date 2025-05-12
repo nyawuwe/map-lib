@@ -43,7 +43,7 @@ export class MapDemoComponent implements OnInit {
     const standardMarker = this.iconService.createMarkerWithIcon(
       [6.134106, 1.216633],
       {
-        iconClass: 'ph ph-map-pin', // Utilise l'icône phosphor-icons
+        iconClass: 'ph ph-map-pin',
         markerColor: '#e74c3c',
         iconColor: 'bleu'
       },
@@ -81,9 +81,7 @@ export class MapDemoComponent implements OnInit {
     const buildingMarker = this.iconService.createMarkerWithIcon(
       [6.124106, 1.226633],
       {
-        iconClass: 'ph ph-buildings', // Icône de bâtiment
-        markerColor: '#2ecc71',
-        iconColor: 'bleu'
+        imageUrl: './assets/000ef536ad908ee07094dbca01432768615fd2b9.png'
       },
       {
         title: 'Bâtiment',

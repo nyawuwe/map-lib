@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="200" viewBox="0 0 400 200">
+  <!-- Fond avec les tentes blanches -->
+  <rect x="0" y="0" width="400" height="200" fill="#f2f2f2"/>
+  <polygon points="50,80 100,20 150,80" fill="white" stroke="#ddd" stroke-width="2"/>
+  <polygon points="130,80 180,20 230,80" fill="white" stroke="#ddd" stroke-width="2"/>
+  <polygon points="210,80 260,20 310,80" fill="white" stroke="#ddd" stroke-width="2"/>
+  <polygon points="290,80 340,20 390,80" fill="white" stroke="#ddd" stroke-width="2"/>
+
+  <!-- Fenêtres des tentes -->
+  <circle cx="100" cy="60" r="10" fill="#f8f8f8" stroke="#ddd"/>
+  <circle cx="180" cy="60" r="10" fill="#f8f8f8" stroke="#ddd"/>
+  <circle cx="260" cy="60" r="10" fill="#f8f8f8" stroke="#ddd"/>
+  <circle cx="340" cy="60" r="10" fill="#f8f8f8" stroke="#ddd"/>
+
+  <!-- Base des tentes -->
+  <rect x="20" y="80" width="360" height="20" fill="#e0e0e0"/>
+
+  <!-- Arbre -->
+  <rect x="30" y="60" width="10" height="40" fill="#8B4513"/>
+  <circle cx="35" cy="40" r="20" fill="#2e8b57"/>
+
+  <!-- Soleil -->
+  <circle cx="370" cy="30" r="15" fill="#f39c12"/>
+
+  <!-- Sol -->
+  <rect x="0" y="100" width="400" height="100" fill="#e0e0e0"/>
+
+  <!-- Texte "Agence Togo Digital" -->
+  <text x="200" y="150" font-family="Arial" font-size="16" text-anchor="middle" fill="#333">Agence Togo Digital</text>
+</svg>
