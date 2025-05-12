@@ -1,5 +1,6 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
 import { MapLibModule, MapService, MapLibOptions } from 'map-lib';
 import { IconService, PopupInfo } from 'map-lib';
 import { PopupActionsService } from 'map-lib';
@@ -9,7 +10,7 @@ import { MapComponent } from 'map-lib';
 @Component({
   selector: 'app-map-demo',
   standalone: true,
-  imports: [CommonModule, MapLibModule],
+  imports: [CommonModule, MapLibModule, HttpClientModule],
   templateUrl: './map-demo.component.html',
   styleUrls: ['./map-demo.component.css']
 })

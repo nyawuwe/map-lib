@@ -1,11 +1,12 @@
 import { Component } from '@angular/core';
 import { RouterOutlet, RouterLink } from '@angular/router';
 import { MapLibModule, MapLibOptions } from 'map-lib';
+import { HttpClientModule } from '@angular/common/http';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, MapLibModule],
+  imports: [RouterOutlet, RouterLink, MapLibModule, HttpClientModule],
   template: `
     <div class="container">
       <header>

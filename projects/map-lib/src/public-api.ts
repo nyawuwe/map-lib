@@ -30,3 +30,4 @@ export * from './lib/providers/mapbox-provider';
 
 // Exporter les jetons d'injection pour les clés d'API
 export { GOOGLE_PLACES_API_KEY, MAPBOX_ACCESS_TOKEN } from './lib/services/places.service';
+export { PlusCodeService, PLUS_CODE_API_URL } from './lib/services/plus-code.service';

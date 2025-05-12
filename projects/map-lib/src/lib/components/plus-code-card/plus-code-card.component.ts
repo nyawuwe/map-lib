@@ -1,13 +1,15 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { HttpClientModule } from '@angular/common/http';
 import * as olc from 'open-location-code';
+import { PlusCodeService } from '../../services/plus-code.service';
 
 @Component({
   selector: 'lib-plus-code-card',
   templateUrl: './plus-code-card.component.html',
   styleUrls: ['./plus-code-card.component.css'],
   standalone: true,
-  imports: [CommonModule]
+  imports: [CommonModule, HttpClientModule]
 })
 export class PlusCodeCardComponent implements OnInit {
   @Input() latitude: number = 0;
@@ -17,6 +19,8 @@ export class PlusCodeCardComponent implements OnInit {
   visible: boolean = false;
   loading: boolean = false;
 
+  constructor(private plusCodeService: PlusCodeService) { }
+
   ngOnInit(): void { }
 
   show(lat: number, lng: number): void {
@@ -25,17 +29,16 @@ export class PlusCodeCardComponent implements OnInit {
     this.loading = true;
     this.visible = true;
 
-    setTimeout(() => {
-      try {
-        const OpenLocationCode = olc.OpenLocationCode;
-        const encoder = new OpenLocationCode() as any;
-        this.plusCode = encoder.encode(lat, lng);
-      } catch (error) {
-        console.error("Erreur lors de l'encodage du Plus Code:", error);
+    this.plusCodeService.getPlusCodeFromApi(lat, lng).subscribe({
+      next: (code) => {
+        this.plusCode = code;
+        this.loading = false;
+      },
+      error: () => {
         this.plusCode = "Erreur d'encodage";
+        this.loading = false;
       }
-      this.loading = false;
-    }, 1500);
+    });
   }
 
   hide(): void {

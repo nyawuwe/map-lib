@@ -1,5 +1,6 @@
 import { ApplicationConfig } from '@angular/core';
 import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
 import { routes } from './app.routes';
 import { MapLibModule, GOOGLE_PLACES_API_KEY, MAP_LIB_CONFIG, MAPBOX_ACCESS_TOKEN } from 'map-lib';
 import { environment } from '../environments/environment';
@@ -7,6 +8,7 @@ import { environment } from '../environments/environment';
 export const appConfig: ApplicationConfig = {
   providers: [
     provideRouter(routes),
+    provideHttpClient(),
     { provide: GOOGLE_PLACES_API_KEY, useValue: environment.googlePlacesApiKey },
     { provide: MAPBOX_ACCESS_TOKEN, useValue: environment.mapbox.apiKey },
     {
