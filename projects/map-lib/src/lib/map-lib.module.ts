@@ -7,6 +7,7 @@ import { PopupComponent } from './components/popup/popup.component';
 import { MapControlsComponent } from './components/map-controls/map-controls.component';
 import { PlusCodeCardComponent } from './components/plus-code-card/plus-code-card.component';
 import { PlacesSearchComponent } from './components/places-search/places-search.component';
+import { ToastComponent } from './components/toast/toast.component';
 import { MapService } from './services/map.service';
 import { IconService } from './services/icon.service';
 import { PopupService } from './services/popup.service';
@@ -14,6 +15,7 @@ import { AssetService } from './services/asset.service';
 import { PlacesService, GOOGLE_PLACES_API_KEY, MAPBOX_ACCESS_TOKEN } from './services/places.service';
 import { MAP_LIB_CONFIG, MapLibConfig } from './services/map-config.service';
 import { PLUS_CODE_API_URL, PlusCodeService } from './services/plus-code.service';
+import { ToastService } from './services/toast.service';
 
 @NgModule({
   imports: [
@@ -24,7 +26,8 @@ import { PLUS_CODE_API_URL, PlusCodeService } from './services/plus-code.service
     PopupComponent,
     MapControlsComponent,
     PlusCodeCardComponent,
-    PlacesSearchComponent
+    PlacesSearchComponent,
+    ToastComponent
   ],
   exports: [
     MapComponent,
@@ -32,7 +35,8 @@ import { PLUS_CODE_API_URL, PlusCodeService } from './services/plus-code.service
     PopupComponent,
     MapControlsComponent,
     PlusCodeCardComponent,
-    PlacesSearchComponent
+    PlacesSearchComponent,
+    ToastComponent
   ],
   providers: [
     MapService,
@@ -40,7 +44,8 @@ import { PLUS_CODE_API_URL, PlusCodeService } from './services/plus-code.service
     PopupService,
     AssetService,
     PlacesService,
-    PlusCodeService
+    PlusCodeService,
+    ToastService
   ]
 })
 export class MapLibModule {

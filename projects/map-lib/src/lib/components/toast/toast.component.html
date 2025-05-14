@@ -1,0 +1,12 @@
+<div class="toast-container transition-all duration-300 ease-in-out">
+  <div *ngFor="let toast of toasts" class="toast toast-{{toast.type}} transition-all duration-300 ease-in-out"
+    [@toastAnimation]="'visible'" (click)="closeToast(toast.id)">
+    <div class="toast-icon">
+      <i class="ph {{getToastIcon(toast.type)}}"></i>
+    </div>
+    <div class="toast-content">
+      <div class="toast-message">{{toast.message}}</div>
+    </div>
+    <button class="toast-close-btn" (click)="closeToast(toast.id)">×</button>
+  </div>
+</div>

@@ -13,13 +13,15 @@ import { PopupActionsService, FavoritePlace } from '../../services/popup-actions
 import { PopupService } from '../../services/popup.service';
 import { PopupInfo } from '../../models/popup-info.model';
 import { Subscription } from 'rxjs';
+import { ToastComponent } from '../toast/toast.component';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'lib-map',
   templateUrl: './map.component.html',
   styleUrls: ['./map.component.css'],
   standalone: true,
-  imports: [CommonModule, MapControlsComponent, PlusCodeCardComponent, LayerControlComponent]
+  imports: [CommonModule, MapControlsComponent, PlusCodeCardComponent, LayerControlComponent, ToastComponent]
 })
 export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('mapContainer', { static: true }) mapContainer!: ElementRef;
@@ -41,7 +43,8 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     private mapConfig: MapConfigService,
     private renderer: Renderer2,
     private popupActionsService: PopupActionsService,
-    private popupService: PopupService
+    private popupService: PopupService,
+    private toastService: ToastService
   ) {
     console.log('MapComponent created');
   }

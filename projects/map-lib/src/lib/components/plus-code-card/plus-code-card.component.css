@@ -46,8 +46,8 @@
 
 .close-button {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: 8px;
+  right: 8px;
   border: none;
   border-radius: 50%;
   color: #1255a6;
@@ -62,15 +62,18 @@
   width: 24px;
   height: 24px;
   transition: background-color 0.2s;
+  background-color: transparent;
+  z-index: 10;
 }
 
 .close-button:hover {
-  background-color: rgba(255, 255, 255, 0.2);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .plus-code-content {
   text-align: left;
   padding: 15px;
+  position: relative;
 }
 
 .plus-code {
@@ -84,6 +87,10 @@
   margin-bottom: 12px;
   text-align: center;
   letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
 }
 
 .coordinates {
@@ -103,6 +110,7 @@
 .coordinate-label {
   font-weight: 600;
   color: #666;
+  width: 40px;
 }
 
 .coordinate-value {
@@ -111,6 +119,8 @@
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 12px;
+  flex: 1;
+  margin: 0 5px;
 }
 
 .loading-spinner {
@@ -121,6 +131,36 @@
   border-radius: 50%;
   border-top-color: #1255a6;
   animation: spin 1s linear infinite;
+}
+
+.copy-button {
+  background: transparent;
+  border: none;
+  color: #1255a6;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.copy-button:hover {
+  background-color: rgba(18, 85, 166, 0.1);
+}
+
+.copy-button.small {
+  font-size: 12px;
+  padding: 2px;
+}
+
+.copy-button i {
+  font-size: 14px;
+}
+
+.copy-button.small i {
+  font-size: 12px;
 }
 
 @keyframes spin {
