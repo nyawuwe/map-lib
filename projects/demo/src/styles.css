@@ -57,6 +57,14 @@ body {
   z-index: 1;
 }
 
+.custom-div-icon img {
+  height: auto !important;
+}
+
+.leaflet-marker-icon {
+  width: auto !important;
+}
+
 /* Styles globaux pour les popups Leaflet */
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {

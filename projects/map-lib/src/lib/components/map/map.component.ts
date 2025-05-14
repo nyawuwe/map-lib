@@ -62,6 +62,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     // S'abonner aux changements des favoris
     this.initFavoritesLayer();
+
+    // Ajouter un écouteur pour l'événement d'arrêt de localisation
+    document.addEventListener('location-stopped', this.onLocationStopped.bind(this));
   }
 
   ngAfterViewInit(): void {
@@ -95,6 +98,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.map.remove();
       }
     }
+
+    // Retirer l'écouteur d'événement d'arrêt de localisation
+    document.removeEventListener('location-stopped', this.onLocationStopped.bind(this));
   }
 
   /**
@@ -180,6 +186,15 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   onLocationError(e: any): void {
     if (this.plusCodeCard) {
       this.plusCodeCard.hide();
+    }
+  }
+
+  disableLocation(): void {
+    if (this.map && this.mapProviderType === MapProviderType.LEAFLET) {
+      this.map.stopLocate();
+      if (this.plusCodeCard) {
+        this.plusCodeCard.hide();
+      }
     }
   }
 
@@ -288,14 +303,14 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
               let newLayer: any;
 
               if (layerInfo.type === 'marker' && providerType === MapProviderType.LEAFLET) {
-                newLayer = L.marker([48.8566, 2.3522]).bindPopup('Paris');
+                newLayer = L.marker([6.1099, 1.0496]).bindPopup('Lomé');
               }
               else if (layerInfo.type === 'marker' && providerType === MapProviderType.MAPBOX) {
                 newLayer = {
                   type: 'marker',
                   markers: [{
-                    lngLat: [2.3522, 48.8566],
-                    popup: { html: 'Paris' }
+                    lngLat: [1.0496, 6.1099],
+                    popup: { html: 'Lomé' }
                   }]
                 };
               }
@@ -390,6 +405,12 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       console.log(`MapComponent: Carte initialisée avec le fournisseur: ${this.mapProviderType}`);
     } catch (error) {
       console.error('MapComponent: Erreur lors de l\'initialisation de la carte:', error);
+    }
+  }
+
+  onLocationStopped = (): void => {
+    if (this.plusCodeCard) {
+      this.plusCodeCard.hide();
     }
   }
 }

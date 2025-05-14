@@ -225,3 +225,36 @@
     transform: rotate(360deg);
   }
 }
+
+/* Styles pour le cercle de localisation avec pulsation */
+@keyframes pulsate-circle {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.leaflet-pulsing-circle {
+  border-radius: 50%;
+  box-shadow: 0 0 0 rgba(33, 150, 243, 0.4);
+  animation: pulsate-circle 2s ease-out infinite;
+  background: rgba(33, 150, 243, 0.2);
+  border: 2px solid rgba(33, 150, 243, 0.5);
+  pointer-events: none;
+}
+
+.leaflet-location-static-circle {
+  background-color: rgba(33, 150, 243, 0.3);
+  border: 2px solid rgba(33, 150, 243, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+}

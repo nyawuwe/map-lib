@@ -119,6 +119,12 @@ export class MapControlsComponent implements OnInit, OnDestroy {
     }
 
     if (this.providerType === MapProviderType.LEAFLET && this.map instanceof L.Map) {
+      (this.map as LeafletMap).stopLocate();
+
+      // Émettre un événement personnalisé pour indiquer l'arrêt de la localisation
+      const locationStoppedEvent = new CustomEvent('location-stopped');
+      document.dispatchEvent(locationStoppedEvent);
+
       if (this.locationMarker) {
         (this.locationMarker as L.Marker).remove();
         this.locationMarker = null;
@@ -131,7 +137,6 @@ export class MapControlsComponent implements OnInit, OnDestroy {
 
       (this.map as LeafletMap).off('locationfound');
       (this.map as LeafletMap).off('locationerror');
-      (this.map as LeafletMap).stopLocate();
     } else if (this.providerType === MapProviderType.MAPBOX && this.map instanceof mapboxgl.Map) {
       try {
         const mapboxMap = this.map as mapboxgl.Map;
@@ -576,6 +581,7 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       (this.locationMarker as L.Marker).remove();
     }
 
+    // Créer le marqueur de localisation (point bleu central)
     this.locationMarker = L.marker(latlng, {
       icon: L.divIcon({
         className: 'user-location-marker',
@@ -585,19 +591,75 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       })
     }).addTo(leafletMap);
 
+    // Supprimer l'ancien cercle s'il existe
     if (this.locationCircle) {
       this.locationCircle.remove();
+      this.locationCircle = null;
     }
 
-    this.locationCircle = L.circle(latlng, {
-      radius: accuracy,
-      color: '#2196F3',
-      fillColor: '#2196F3',
-      fillOpacity: 0.15,
-      weight: 2
-    }).addTo(leafletMap);
+    // Supprimer d'anciens cercles personnalisés s'ils existent
+    leafletMap.eachLayer((layer) => {
+      // Vérifier si c'est un circleMarker avec une classe spécifique
+      if (layer instanceof L.CircleMarker && layer.options &&
+        ((layer as any).options.className === 'leaflet-pulsing-circle' ||
+          (layer as any).options.className === 'leaflet-location-static-circle')) {
+        leafletMap.removeLayer(layer);
+      }
+    });
 
-    // Le centrage est géré par la méthode appelante (startLeafletGeolocation ou startBrowserGeolocation)
+    // Cercle de précision avec effet de pulsation
+    const pulsingCircleOptions: L.CircleMarkerOptions & { className?: string } = {
+      radius: accuracy / 20, // Ajuster en fonction du zoom
+      className: 'leaflet-pulsing-circle',
+      fillColor: 'transparent',
+      fillOpacity: 0,
+      stroke: false,
+      interactive: false
+    };
+
+    const accuracyCircle = L.circleMarker(latlng, pulsingCircleOptions).addTo(leafletMap);
+
+    // Petit cercle statique (rayon fixe de 5m à 10m)
+    const smallRadius = Math.min(10, accuracy / 10); // Entre 5m et 10m
+
+    const staticCircleOptions: L.CircleMarkerOptions & { className?: string } = {
+      radius: smallRadius / 2, // Convertir en pixels raisonnables
+      className: 'leaflet-location-static-circle',
+      fillColor: '#2196F3',
+      fillOpacity: 0.4,
+      stroke: true,
+      color: '#2196F3',
+      weight: 1,
+      interactive: false
+    };
+
+    const staticCircle = L.circleMarker(latlng, staticCircleOptions).addTo(leafletMap);
+
+    // Stocker le cercle principal comme référence (attention: c'est maintenant un CircleMarker et non un Circle)
+    this.locationCircle = accuracyCircle as any;
+
+    // Ajuster les cercles lors du zoom
+    const updateCirclesOnZoom = () => {
+      const zoom = leafletMap.getZoom();
+      // Formule pour ajuster le rayon en fonction du zoom
+      // Plus le zoom est élevé, plus le cercle sera grand en pixels
+      const zoomFactor = Math.pow(2, (zoom - 14) / 2); // 14 est un zoom de référence
+
+      // Ajuster le cercle de pulsation
+      const pulseRadius = (accuracy / 20) * zoomFactor;
+      accuracyCircle.setRadius(Math.min(pulseRadius, 100)); // Limiter la taille
+
+      // Ajuster le petit cercle statique
+      const staticRadius = (smallRadius / 2) * zoomFactor;
+      staticCircle.setRadius(Math.min(staticRadius, 20)); // Limiter la taille
+    };
+
+    // Appliquer l'ajustement initial
+    updateCirclesOnZoom();
+
+    // S'abonner à l'événement de zoom pour mettre à jour les cercles
+    leafletMap.off('zoomend', updateCirclesOnZoom);
+    leafletMap.on('zoomend', updateCirclesOnZoom);
   }
 
   private displayLocationOnMapbox(longitude: number, latitude: number, accuracy: number): void {
@@ -609,6 +671,7 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       (this.locationMarker as mapboxgl.Marker).remove();
     }
 
+    // Créer le point de localisation (marker bleu central)
     const el = document.createElement('div');
     el.className = 'user-location-marker';
     el.innerHTML = '<div class="location-marker-inner"></div>';
@@ -618,74 +681,183 @@ export class MapControlsComponent implements OnInit, OnDestroy {
       .addTo(mapboxMap);
 
     // Convertir le rayon en mètres vers des pixels
-    // Cette formule tient compte du niveau de zoom et de la latitude
-    const pixelsPerMeter = this.metersToPixelsAtLatitude(accuracy, latitude, mapboxMap.getZoom());
+    const zoomLevel = mapboxMap.getZoom();
+    const pulseRadiusPixels = this.metersToPixelsAtLatitude(accuracy, latitude, zoomLevel);
+    const staticRadiusPixels = this.metersToPixelsAtLatitude(
+      Math.min(10, accuracy / 10), // Rayon du petit cercle statique (5-10m)
+      latitude,
+      zoomLevel
+    );
 
-    const circleGeoJson = {
+    // Créer un GeoJSON pour les deux cercles
+    const circlesGeoJson = {
       type: 'FeatureCollection',
-      features: [{
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [longitude, latitude]
+      features: [
+        // Cercle de pulsation
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [longitude, latitude]
+          },
+          properties: {
+            radius_meters: accuracy,
+            radius_pixels: pulseRadiusPixels,
+            circleType: 'pulse'
+          }
         },
-        properties: {
-          radius_meters: accuracy,
-          radius_pixels: pixelsPerMeter
+        // Petit cercle statique
+        {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [longitude, latitude]
+          },
+          properties: {
+            radius_meters: Math.min(10, accuracy / 10),
+            radius_pixels: staticRadiusPixels,
+            circleType: 'static'
+          }
         }
-      }]
+      ]
     };
 
-    if (mapboxMap.getSource(this.locationGeoJSONSource)) {
-      (mapboxMap.getSource(this.locationGeoJSONSource) as mapboxgl.GeoJSONSource).setData(circleGeoJson as any);
-    } else {
-      try {
-        mapboxMap.addSource(this.locationGeoJSONSource, {
-          type: 'geojson',
-          data: circleGeoJson as any
-        });
+    // Supprimer les sources et couches existantes si elles existent
+    this.removeMapboxLocationLayers(mapboxMap);
 
-        mapboxMap.addLayer({
-          id: 'accuracy-circle-layer',
-          source: this.locationGeoJSONSource,
-          type: 'circle',
-          paint: {
-            // Utiliser la propriété radius_pixels calculée au lieu de radius_meters
-            'circle-radius': ['get', 'radius_pixels'],
-            'circle-color': '#2196F3',
-            'circle-opacity': 0.15,
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#2196F3'
-          }
-        });
+    // Ajouter la source de données pour les cercles
+    mapboxMap.addSource(this.locationGeoJSONSource, {
+      type: 'geojson',
+      data: circlesGeoJson as any
+    });
 
-        // Mettre à jour le rayon lors du zoom
-        mapboxMap.on('zoom', () => {
-          if (this.isLocating && this.locationMarker) {
-            const position = (this.locationMarker as mapboxgl.Marker).getLngLat();
-            const radiusMeters = circleGeoJson.features[0].properties.radius_meters;
-            const newPixels = this.metersToPixelsAtLatitude(
-              radiusMeters,
-              position.lat,
-              mapboxMap.getZoom()
-            );
-
-            // Mettre à jour la propriété radius_pixels
-            circleGeoJson.features[0].properties.radius_pixels = newPixels;
-
-            // Mettre à jour la source
-            if (mapboxMap.getSource(this.locationGeoJSONSource)) {
-              (mapboxMap.getSource(this.locationGeoJSONSource) as mapboxgl.GeoJSONSource)
-                .setData(circleGeoJson as any);
-            }
-          }
-        });
-      } catch (error) {
-        console.error('Erreur lors de l\'ajout de la couche de précision:', error);
+    // Ajouter la couche pour le cercle de pulsation
+    mapboxMap.addLayer({
+      id: 'location-pulse-circle',
+      source: this.locationGeoJSONSource,
+      type: 'circle',
+      filter: ['==', ['get', 'circleType'], 'pulse'],
+      paint: {
+        'circle-radius': ['get', 'radius_pixels'],
+        'circle-color': '#2196F3',
+        'circle-opacity': 0.2,
+        'circle-opacity-transition': {
+          duration: 2000,
+          delay: 0
+        },
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#2196F3',
+        'circle-stroke-opacity': 0.3,
+        'circle-radius-transition': {
+          duration: 2000,
+          delay: 0
+        }
       }
-    }
+    });
 
-    // Le centrage est géré par la méthode appelante (startMapboxGeolocation ou startBrowserGeolocation)
+    // Ajouter la couche pour le petit cercle statique
+    mapboxMap.addLayer({
+      id: 'location-static-circle',
+      source: this.locationGeoJSONSource,
+      type: 'circle',
+      filter: ['==', ['get', 'circleType'], 'static'],
+      paint: {
+        'circle-radius': ['get', 'radius_pixels'],
+        'circle-color': '#2196F3',
+        'circle-opacity': 0.4,
+        'circle-stroke-width': 1,
+        'circle-stroke-color': '#2196F3',
+        'circle-stroke-opacity': 0.6
+      }
+    });
+
+    // Animation du cercle de pulsation
+    this.animateMapboxPulseCircle(mapboxMap, circlesGeoJson);
+
+    // Mettre à jour les rayons lors du zoom
+    mapboxMap.on('zoom', () => {
+      if (this.isLocating && this.locationMarker) {
+        const position = (this.locationMarker as mapboxgl.Marker).getLngLat();
+        const newZoom = mapboxMap.getZoom();
+
+        // Mettre à jour les rayons en fonction du nouveau zoom
+        const newPulsePixels = this.metersToPixelsAtLatitude(
+          circlesGeoJson.features[0].properties.radius_meters,
+          position.lat,
+          newZoom
+        );
+
+        const newStaticPixels = this.metersToPixelsAtLatitude(
+          circlesGeoJson.features[1].properties.radius_meters,
+          position.lat,
+          newZoom
+        );
+
+        // Mettre à jour les propriétés
+        circlesGeoJson.features[0].properties.radius_pixels = newPulsePixels;
+        circlesGeoJson.features[1].properties.radius_pixels = newStaticPixels;
+
+        // Mettre à jour la source
+        if (mapboxMap.getSource(this.locationGeoJSONSource)) {
+          (mapboxMap.getSource(this.locationGeoJSONSource) as mapboxgl.GeoJSONSource)
+            .setData(circlesGeoJson as any);
+        }
+      }
+    });
+  }
+
+  /**
+   * Supprime les couches et sources liées à la localisation dans Mapbox
+   */
+  private removeMapboxLocationLayers(mapboxMap: mapboxgl.Map): void {
+    const layers = ['location-pulse-circle', 'location-static-circle', 'accuracy-circle-layer'];
+
+    layers.forEach(layer => {
+      if (mapboxMap.getLayer(layer)) {
+        mapboxMap.removeLayer(layer);
+      }
+    });
+
+    if (mapboxMap.getSource(this.locationGeoJSONSource)) {
+      mapboxMap.removeSource(this.locationGeoJSONSource);
+    }
+  }
+
+  /**
+   * Anime le cercle de pulsation avec Mapbox
+   */
+  private animateMapboxPulseCircle(mapboxMap: mapboxgl.Map, geoJson: any): void {
+    // Cycle d'animation
+    const animatePulse = () => {
+      // Stopper l'animation si on n'est plus en mode de localisation
+      if (!this.isLocating) return;
+
+      setTimeout(() => {
+        // Agrandir le cercle et réduire l'opacité
+        mapboxMap.setPaintProperty('location-pulse-circle', 'circle-radius',
+          ['*', ['get', 'radius_pixels'], 1.6]);
+        mapboxMap.setPaintProperty('location-pulse-circle', 'circle-opacity', 0);
+        mapboxMap.setPaintProperty('location-pulse-circle', 'circle-stroke-opacity', 0);
+
+        setTimeout(() => {
+          // Réinitialiser pour recommencer l'animation
+          mapboxMap.setPaintProperty('location-pulse-circle', 'circle-radius',
+            ['get', 'radius_pixels']);
+          mapboxMap.setPaintProperty('location-pulse-circle', 'circle-opacity', 0.2);
+          mapboxMap.setPaintProperty('location-pulse-circle', 'circle-stroke-opacity', 0.3);
+
+          // Continuer l'animation
+          requestAnimationFrame(() => {
+            if (this.isLocating) {
+              animatePulse();
+            }
+          });
+        }, 2000); // Durée pour réinitialiser
+      }, 100); // Délai pour commencer la transition
+    };
+
+    // Démarrer l'animation
+    animatePulse();
   }
 
   /**

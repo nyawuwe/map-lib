@@ -39,8 +39,8 @@ export class IconService {
       return L.divIcon({
         html: `
           <div class="custom-div-icon">
-            <div class="marker-pin" style="background-color: ${opts.markerColor};">
-              <img src="${opts.imageUrl}" style="width: 100%; height: 100%; height: auto !important; object-fit: contain;">
+            <div id="leaflet-marker-pane custom-div-icon" class="marker-pin" style="background-color: ${opts.markerColor}; width:auto !important;">
+              <img src="${opts.imageUrl}">
             </div>
           </div>
         `,

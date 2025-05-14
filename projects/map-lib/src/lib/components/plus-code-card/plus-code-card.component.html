@@ -2,11 +2,18 @@
   <div class="plus-code-card">
     <div class="loading-spinner" *ngIf="loading"></div>
     <div class="plus-code-content" *ngIf="!loading">
+      <button class="close-button" (click)="hide()">×</button>
       <div class="plus-code">{{ plusCode }}</div>
-      <!-- <div class="coordinates">
-        <span>Lat: {{ latitude | number:'1.6-6' }}</span>
-        <span>Lng: {{ longitude | number:'1.6-6' }}</span>
-      </div> -->
+      <div class="coordinates">
+        <div class="coordinate-row">
+          <span class="coordinate-label">Lat:</span>
+          <span class="coordinate-value">{{ latitude | number:'1.6-6' }}</span>
+        </div>
+        <div class="coordinate-row">
+          <span class="coordinate-label">Lng:</span>
+          <span class="coordinate-value">{{ longitude | number:'1.6-6' }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </div>
