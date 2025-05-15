@@ -98,3 +98,173 @@ body {
   color: #ffffff !important;
   text-decoration: none !important;
 }
+
+
+
+/* Styles pour le marqueur circulaire concentrique */
+.custom-concentric-marker {
+  cursor: pointer;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Cercle intérieur bleu vif */
+.marker-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background-color: #4285F4;
+  border-radius: 50%;
+  z-index: 3;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Anneau extérieur bleu foncé */
+.marker-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 16px;
+  height: 16px;
+  border: 2px solid #3367D6;
+  border-radius: 50%;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+/* ===== Animations ===== */
+@keyframes pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.3;
+  }
+
+  50% {
+    transform: translate(-50%, -50%) scale(1.2);
+    opacity: 0.5;
+  }
+
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.3;
+  }
+}
+
+@keyframes pulse-location {
+  0% {
+    transform: scale(0.8);
+    box-shadow: 0 0 0 0 rgba(33, 150, 243, 0.7);
+  }
+
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(33, 150, 243, 0);
+  }
+
+  100% {
+    transform: scale(0.8);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulsate-circle {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 0.4;
+  }
+
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+/* ===== Marqueurs de base ===== */
+.marker-halo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  background-color: rgba(66, 133, 244, 0.3);
+  border-radius: 50%;
+  z-index: 1;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ===== Marqueurs de localisation ===== */
+.user-location-marker {
+  width: 22px !important;
+  height: 22px;
+  border-radius: 50%;
+  background-color: rgba(33, 150, 243, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.location-marker-inner {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background-color: #2196F3;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+  animation: pulse-location 2s infinite;
+}
+
+.leaflet-pulsing-circle {
+  border-radius: 50%;
+  box-shadow: 0 0 0 rgba(33, 150, 243, 0.4);
+  animation: pulsate-circle 2s ease-out infinite;
+  background: rgba(33, 150, 243, 0.2);
+  border: 2px solid rgba(33, 150, 243, 0.5);
+  pointer-events: none;
+}
+
+.leaflet-location-static-circle {
+  background-color: rgba(33, 150, 243, 0.3);
+  border: 2px solid rgba(33, 150, 243, 0.6);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* ===== Indicateurs de chargement ===== */
+.location-loading-indicator {
+  position: absolute;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: rgba(255, 255, 255, 0.8);
+  border-radius: 5px;
+  padding: 10px;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(33, 150, 243, 0.3);
+  border-radius: 50%;
+  border-top-color: #2196F3;
+  animation: spin 1s linear infinite;
+}

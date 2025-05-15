@@ -10,6 +10,8 @@ export * from './lib/components/map-controls/map-controls.component';
 export * from './lib/components/plus-code-card/plus-code-card.component';
 export * from './lib/components/places-search/places-search.component';
 export * from './lib/components/toast/toast.component';
+export * from './lib/components/clicked-point-info/clicked-point-info.component';
+export * from './lib/components/clicked-point-popup/clicked-point-popup.component';
 
 export * from './lib/services/map.service';
 export * from './lib/services/icon.service';

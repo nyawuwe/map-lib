@@ -1,5 +1,6 @@
 import { Injectable, Injector, ApplicationRef, ComponentRef, createComponent, EnvironmentInjector } from '@angular/core';
 import { PopupComponent } from '../components/popup/popup.component';
+import { ClickedPointPopupComponent } from '../components/clicked-point-popup/clicked-point-popup.component';
 import { PopupInfo } from '../models/popup-info.model';
 import * as L from 'leaflet';
 
@@ -70,10 +71,81 @@ export class PopupService {
     }
 
     /**
+     * Crée un popup spécifique pour les points cliqués sur la carte
+     */
+    createClickedPointPopup(lat: number, lng: number, options?: L.PopupOptions): L.Popup {
+        // Configuration par défaut du popup Leaflet pour les points cliqués
+        const defaultOptions: L.PopupOptions = {
+            className: 'clicked-point-custom-popup',
+            minWidth: 280,
+            maxWidth: 320,
+            closeButton: true,
+            closeOnClick: false,
+            autoPan: true,
+            autoPanPadding: [50, 50],
+            offset: [0, -10],
+            // Options pour un rendu plus fluide
+            keepInView: true,
+            autoClose: false,
+            closeOnEscapeKey: true,
+            interactive: true
+        };
+
+        const mergedOptions = { ...defaultOptions, ...options };
+
+        // Créer un élément div pour contenir notre composant Angular
+        const container = document.createElement('div');
+
+        // Créer une instance du composant ClickedPointPopupComponent
+        const componentRef = createComponent(ClickedPointPopupComponent, {
+            environmentInjector: this.environmentInjector,
+            hostElement: container,
+            elementInjector: this.injector
+        });
+
+        // Passer les informations au composant
+        componentRef.instance.latitude = lat;
+        componentRef.instance.longitude = lng;
+        componentRef.instance.locationName = 'Lieu non répertorié';
+
+        // Attacher le composant à l'application
+        this.applicationRef.attachView(componentRef.hostView);
+
+        // Créer le popup et définir son contenu avec notre élément
+        const popup = L.popup(mergedOptions).setContent(container);
+
+        // Détacher la vue du composant lorsque le popup est fermé
+        popup.on('remove', () => {
+            this.applicationRef.detachView(componentRef.hostView);
+            componentRef.destroy();
+        });
+
+        return popup;
+    }
+
+    /**
      * Ajoute un popup à un marqueur existant
      */
     bindPopupToMarker(marker: L.Marker, popupInfo: PopupInfo, options?: L.PopupOptions): L.Marker {
         const popup = this.createPopup(popupInfo, marker.getLatLng(), options);
+
+        // Configurer le popup avec des options avancées
+        marker.bindPopup(popup);
+
+        // Ajouter un effet de clic au marqueur
+        marker.on('click', function (this: L.Marker) {
+            this.openPopup();
+        });
+
+        return marker;
+    }
+
+    /**
+     * Ajoute un popup spécifique pour point cliqué à un marqueur existant
+     */
+    bindClickedPointPopupToMarker(marker: L.Marker, options?: L.PopupOptions): L.Marker {
+        const latLng = marker.getLatLng();
+        const popup = this.createClickedPointPopup(latLng.lat, latLng.lng, options);
 
         // Configurer le popup avec des options avancées
         marker.bindPopup(popup);

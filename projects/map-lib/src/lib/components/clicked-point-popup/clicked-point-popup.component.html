@@ -1,0 +1,25 @@
+<div class="clicked-point-popup">
+    <div class="spinner-container" *ngIf="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <div class="popup-content" *ngIf="!loading">
+        <h3 class="location-title">{{ locationName }}</h3>
+
+        <div class="info-row">
+            <div class="info-label">Plus code</div>
+            <div class="info-value">
+                <span>{{ plusCode }}</span>
+                <button class="copy-button" (click)="copyToClipboard(plusCode)">copier</button>
+            </div>
+        </div>
+
+        <div class="info-row">
+            <div class="info-label">Position GPS</div>
+            <div class="info-value">
+                <span>{{ latitude | number:'1.6-6' }}, {{ longitude | number:'1.6-6' }}</span>
+                <button class="copy-button" (click)="copyToClipboard(latitude + ', ' + longitude)">copier</button>
+            </div>
+        </div>
+    </div>
+</div>

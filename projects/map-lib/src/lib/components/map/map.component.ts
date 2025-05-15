@@ -36,6 +36,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   private providerChangeEventListener: () => void = () => { };
   private favoriteMarkersLayer: any;
   private favoritesSubscription: Subscription | null = null;
+  private clickMarker: any = null;
 
   constructor(
     private mapService: MapService,
@@ -62,6 +63,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
     this.initMap();
     this.setupProviderChangeListener();
+    this.setupMapClickListener();
 
     // S'abonner aux changements des favoris
     this.initFavoritesLayer();
@@ -118,6 +120,69 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
       // S'abonner aux changements des favoris
       this.favoritesSubscription = this.popupActionsService.getFavorites().subscribe(favorites => {
         this.updateFavoritesLayer(favorites);
+      });
+    }
+  }
+
+  /**
+   * Configurer l'écouteur de clic sur la carte
+   */
+  private setupMapClickListener(): void {
+    if (this.map && this.mapProviderType === MapProviderType.LEAFLET) {
+      this.map.on('click', (e: L.LeafletMouseEvent) => {
+        this.handleMapClick(e.latlng.lat, e.latlng.lng);
+      });
+    }
+  }
+
+  /**
+   * Gérer le clic sur la carte
+   */
+  handleMapClick(lat: number, lng: number): void {
+    // Supprimer le marqueur précédent s'il existe
+    if (this.clickMarker) {
+      if (this.mapProviderType === MapProviderType.LEAFLET) {
+        this.map.removeLayer(this.clickMarker);
+      }
+    }
+
+    // Créer un nouveau marqueur à l'emplacement du clic
+    if (this.mapProviderType === MapProviderType.LEAFLET) {
+      // Création d'un marqueur circulaire personnalisé
+      const concenticCircleIcon = L.divIcon({
+        className: 'custom-concentric-marker',
+        html: `
+          <div class="marker-halo"></div>
+          <div class="marker-ring"></div>
+          <div class="marker-circle"></div>
+        `,
+        iconSize: [48, 48],     // taille de l'icône
+        iconAnchor: [24, 24],   // point de l'icône qui correspondra à l'emplacement du marqueur
+        popupAnchor: [0, -24]   // point à partir duquel le popup doit s'ouvrir par rapport à l'iconAnchor
+      });
+
+      // Créer le marqueur avec l'icône et l'ajouter à la carte
+      this.clickMarker = L.marker([lat, lng], {
+        icon: concenticCircleIcon,
+        riseOnHover: true,
+        zIndexOffset: 1000  // S'assurer que le marqueur est au-dessus des autres éléments
+      }).addTo(this.map);
+
+      // Utiliser le popup spécifique pour point cliqué
+      this.popupService.bindClickedPointPopupToMarker(this.clickMarker);
+
+      // Ouvrir automatiquement le popup
+      this.clickMarker.openPopup();
+
+      // Supprimer le marqueur lorsque le popup est fermé
+      const currentMarker = this.clickMarker; // Capturer dans une variable locale
+      this.clickMarker.getPopup().on('remove', () => {
+        if (this.map && currentMarker) {
+          this.map.removeLayer(currentMarker);
+          if (this.clickMarker === currentMarker) {
+            this.clickMarker = null;
+          }
+        }
       });
     }
   }
@@ -274,6 +339,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
       // Réinitialiser la couche des favoris
       this.initFavoritesLayer();
+
+      // Reconfigurer l'écouteur de clic
+      this.setupMapClickListener();
 
       // Diffuser l'événement de changement de fournisseur
       const providerChangeEvent = new CustomEvent('map-provider-change', {

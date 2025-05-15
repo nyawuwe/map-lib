@@ -1,0 +1,104 @@
+.clicked-point-popup {
+  font-family: 'Poppins', Arial, sans-serif;
+  padding: 0;
+  width: 100%;
+  max-width: 320px;
+}
+
+.popup-content {
+  padding: 15px;
+  background-color: white;
+  border-radius: 8px;
+}
+
+.location-title {
+  font-size: 14px !important;
+  color: #333;
+  margin: 0 0 15px 0;
+  font-weight: 500 !important;
+}
+
+.info-row {
+  margin-bottom: 12px;
+}
+
+.info-label {
+  font-size: 10px !important;
+  font-weight: 900 !important;
+}
+
+.info-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+
+.info-value span {
+  font-size: 12px;
+  color: #666;
+  flex: 1;
+  margin-right: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-button {
+  background-color: transparent;
+  border: none;
+  color: #1255a6;
+  font-size: 14px;
+  font-weight: 600 !important;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.copy-button:hover {
+  background-color: rgba(18, 85, 166, 0.1);
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(18, 85, 166, 0.1);
+  border-radius: 50%;
+  border-top-color: #1255a6;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Override leaflet default popup styles */
+:host ::ng-deep .leaflet-popup-content-wrapper {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+:host ::ng-deep .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+:host ::ng-deep .leaflet-popup-tip {
+  border-top: 10px solid white;
+}
