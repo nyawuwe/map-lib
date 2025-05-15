@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, ChangeDetectorRef, AfterViewInit, Renderer2 } from '@angular/core';
+import { Component, ElementRef, Input, OnDestroy, OnInit, ViewChild, ChangeDetectorRef, AfterViewInit, Renderer2, Output, EventEmitter } from '@angular/core';
 import { MapService } from '../../services/map.service';
 import { MapLibOptions } from '../../models/map-options.model';
 import * as L from 'leaflet';
@@ -10,11 +10,19 @@ import { LayerControlComponent } from '../layer-control/layer-control.component'
 import { LayerInfo } from '../../models/layer-info.model';
 import { MapConfigService } from '../../services/map-config.service';
 import { PopupActionsService, FavoritePlace } from '../../services/popup-actions.service';
-import { PopupService } from '../../services/popup.service';
+import { PopupService, ClickedPointEvent } from '../../services/popup.service';
 import { PopupInfo } from '../../models/popup-info.model';
 import { Subscription } from 'rxjs';
 import { ToastComponent } from '../toast/toast.component';
 import { ToastService } from '../../services/toast.service';
+import { ClickedPointButtonConfig } from '../../components/clicked-point-popup/clicked-point-popup.component';
+
+// Interface pour la configuration des boutons du popup de point cliqué
+export interface ClickedPointPopupConfig {
+  button1?: ClickedPointButtonConfig;
+  button2?: ClickedPointButtonConfig;
+  button3?: ClickedPointButtonConfig;
+}
 
 @Component({
   selector: 'lib-map',
@@ -30,6 +38,9 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
 
   @Input() options: MapLibOptions = {};
   @Input() providerOptions?: MapProviderOptions;
+  @Input() clickedPointPopupConfig: ClickedPointPopupConfig = {};
+
+  @Output() clickedPointButtonClick = new EventEmitter<ClickedPointEvent>();
 
   map: any = null;
   mapProviderType: MapProviderType = MapProviderType.LEAFLET;
@@ -37,6 +48,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   private favoriteMarkersLayer: any;
   private favoritesSubscription: Subscription | null = null;
   private clickMarker: any = null;
+  private clickedPointEventsSubscription: Subscription | null = null;
 
   constructor(
     private mapService: MapService,
@@ -68,6 +80,11 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     // S'abonner aux changements des favoris
     this.initFavoritesLayer();
 
+    // S'abonner aux événements de clic sur les boutons du popup
+    this.clickedPointEventsSubscription = this.popupService.getClickedPointEvents().subscribe(event => {
+      this.clickedPointButtonClick.emit(event);
+    });
+
     // Ajouter un écouteur pour l'événement d'arrêt de localisation
     document.addEventListener('location-stopped', this.onLocationStopped.bind(this));
   }
@@ -96,6 +113,11 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     // Désabonner des favoris
     if (this.favoritesSubscription) {
       this.favoritesSubscription.unsubscribe();
+    }
+
+    // Désabonner des événements de point cliqué
+    if (this.clickedPointEventsSubscription) {
+      this.clickedPointEventsSubscription.unsubscribe();
     }
 
     if (this.map) {
@@ -168,8 +190,12 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         zIndexOffset: 1000  // S'assurer que le marqueur est au-dessus des autres éléments
       }).addTo(this.map);
 
-      // Utiliser le popup spécifique pour point cliqué
-      this.popupService.bindClickedPointPopupToMarker(this.clickMarker);
+      // Utiliser le popup spécifique pour point cliqué avec la configuration des boutons
+      this.popupService.bindClickedPointPopupToMarker(
+        this.clickMarker,
+        undefined,
+        this.clickedPointPopupConfig
+      );
 
       // Ouvrir automatiquement le popup
       this.clickMarker.openPopup();

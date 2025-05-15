@@ -1,25 +1,46 @@
 <div class="clicked-point-popup">
-    <div class="spinner-container" *ngIf="loading">
-        <div class="loading-spinner"></div>
+  <div class="spinner-container" *ngIf="loading">
+    <div class="loading-spinner"></div>
+  </div>
+
+  <div class="popup-content" *ngIf="!loading">
+    <div class="header-container">
+      <h3 class="location-title">{{ locationName }}</h3>
+
+      <div class="buttons-container">
+        <div class="buttons-row">
+          <button *ngIf="button1Config.visible" [title]="button1Config.tooltip"
+            [disabled]="button1Config.enabled === false" class="action-button" (click)="onButton1Click()">
+            <i class="ph" [ngClass]="button1Config.icon"></i>
+          </button>
+
+          <button *ngIf="button2Config.visible" [title]="button2Config.tooltip"
+            [disabled]="button2Config.enabled === false" class="action-button" (click)="onButton2Click()">
+            <i class="ph" [ngClass]="button2Config.icon"></i>
+          </button>
+
+          <button *ngIf="button3Config.visible" [title]="button3Config.tooltip"
+            [disabled]="button3Config.enabled === false" class="action-button plus" (click)="onButton3Click()">
+            <i class="ph" [ngClass]="button3Config.icon"></i>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div class="popup-content" *ngIf="!loading">
-        <h3 class="location-title">{{ locationName }}</h3>
-
-        <div class="info-row">
-            <div class="info-label">Plus code</div>
-            <div class="info-value">
-                <span>{{ plusCode }}</span>
-                <button class="copy-button" (click)="copyToClipboard(plusCode)">copier</button>
-            </div>
-        </div>
-
-        <div class="info-row">
-            <div class="info-label">Position GPS</div>
-            <div class="info-value">
-                <span>{{ latitude | number:'1.6-6' }}, {{ longitude | number:'1.6-6' }}</span>
-                <button class="copy-button" (click)="copyToClipboard(latitude + ', ' + longitude)">copier</button>
-            </div>
-        </div>
+    <div class="info-row">
+      <div class="info-label">Plus code</div>
+      <div class="info-value">
+        <span>{{ plusCode }}</span>
+        <button class="copy-button" (click)="copyToClipboard(plusCode)">copier</button>
+      </div>
     </div>
+
+    <div class="info-row">
+      <div class="info-label">Position GPS</div>
+      <div class="info-value">
+        <span>{{ latitude | number:'1.6-6' }}, {{ longitude | number:'1.6-6' }}</span>
+        <button class="copy-button" (click)="copyToClipboard(latitude + ', ' + longitude)">copier</button>
+      </div>
+    </div>
+  </div>
 </div>
