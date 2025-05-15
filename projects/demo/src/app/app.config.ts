@@ -14,7 +14,7 @@ export const appConfig: ApplicationConfig = {
     {
       provide: MAP_LIB_CONFIG, useValue: {
         mapboxApiKey: environment.mapbox.apiKey,
-        defaultProvider: 'mapbox'
+        defaultProvider: 'leaflet'
       }
     }
   ]

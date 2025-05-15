@@ -11,7 +11,7 @@
   </div>
 
   <div class="map-container">
-    <lib-map [options]="mapOptions" #mapComponent></lib-map>
-    <lib-places-search [map]="mapComponent?.map ?? null"></lib-places-search>
+    <lib-map [options]="mapOptions" #mapComponent [clickedPointPopupConfig]="clickedPointConfig"
+      (clickedPointButtonClick)="onButtonClick($event)" (mapClick)="onMapClick($event)">></lib-map>
   </div>
 </div>

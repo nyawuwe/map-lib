@@ -5,7 +5,7 @@ import { MapLibModule, MapService, MapLibOptions } from 'map-lib';
 import { IconService, PopupInfo } from 'map-lib';
 import { PopupActionsService } from 'map-lib';
 import * as L from 'leaflet';
-import { MapComponent } from 'map-lib';
+import { MapComponent, MapClickEvent, ClickedPointPopupConfig, ClickedPointEvent } from 'map-lib';
 
 @Component({
   selector: 'app-map-demo',
@@ -234,4 +234,45 @@ export class MapDemoComponent implements OnInit {
       }
     );
   }
+
+  clickedPointConfig: ClickedPointPopupConfig = {
+    button1: {
+      visible: true,
+      icon: 'ph-share',
+      tooltip: 'Partager cette position'
+    },
+    button2: {
+      visible: true,
+      icon: 'ph-bookmark-simple',
+      tooltip: 'Obtenir un itinéraire'
+    },
+    button3: {
+      visible: true,
+      icon: 'ph-plus',
+      tooltip: 'Ajouter aux favoris'
+    }
+  };
+
+  onButtonClick(event: ClickedPointEvent): void {
+    const { buttonIndex, latitude, longitude } = event;
+
+    if (buttonIndex === 1) {
+      // Partager la position
+    } else if (buttonIndex === 2) {
+      // Obtenir un itinéraire
+    } else if (buttonIndex === 3) {
+      console.log('Plus')
+    }
+  }
+
+  onMapClick(event: MapClickEvent): void {
+    const { latitude, longitude, plusCode } = event;
+
+    console.log(`Position cliquée: ${latitude}, ${longitude}`);
+    console.log(`Plus Code: ${plusCode}`);
+
+    // Vous pouvez maintenant utiliser ces informations comme vous le souhaitez
+    // Par exemple, les stocker dans votre application ou les envoyer à un serveur
+  }
+
 }

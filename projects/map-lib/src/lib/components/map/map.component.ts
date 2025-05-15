@@ -16,12 +16,20 @@ import { Subscription } from 'rxjs';
 import { ToastComponent } from '../toast/toast.component';
 import { ToastService } from '../../services/toast.service';
 import { ClickedPointButtonConfig } from '../../components/clicked-point-popup/clicked-point-popup.component';
+import { PlusCodeService } from '../../services/plus-code.service';
 
 // Interface pour la configuration des boutons du popup de point cliqué
 export interface ClickedPointPopupConfig {
   button1?: ClickedPointButtonConfig;
   button2?: ClickedPointButtonConfig;
   button3?: ClickedPointButtonConfig;
+}
+
+// Interface pour l'événement de clic sur la carte
+export interface MapClickEvent {
+  latitude: number;
+  longitude: number;
+  plusCode: string;
 }
 
 @Component({
@@ -41,6 +49,7 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
   @Input() clickedPointPopupConfig: ClickedPointPopupConfig = {};
 
   @Output() clickedPointButtonClick = new EventEmitter<ClickedPointEvent>();
+  @Output() mapClick = new EventEmitter<MapClickEvent>();
 
   map: any = null;
   mapProviderType: MapProviderType = MapProviderType.LEAFLET;
@@ -57,7 +66,8 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
     private renderer: Renderer2,
     private popupActionsService: PopupActionsService,
     private popupService: PopupService,
-    private toastService: ToastService
+    private toastService: ToastService,
+    private plusCodeService: PlusCodeService
   ) {
     console.log('MapComponent created');
   }
@@ -167,6 +177,27 @@ export class MapComponent implements OnInit, AfterViewInit, OnDestroy {
         this.map.removeLayer(this.clickMarker);
       }
     }
+
+    // Émettre l'événement de clic sur la carte avec les coordonnées et le plus code
+    this.plusCodeService.getPlusCodeFromApi(lat, lng).subscribe({
+      next: (plusCode) => {
+        // Émettre l'événement avec les coordonnées et le plus code
+        this.mapClick.emit({
+          latitude: lat,
+          longitude: lng,
+          plusCode: plusCode
+        });
+      },
+      error: () => {
+        // Émettre l'événement même si le plus code n'a pas pu être récupéré
+        this.mapClick.emit({
+          latitude: lat,
+          longitude: lng,
+          plusCode: "Erreur d'encodage"
+        });
+        this.toastService.showError("Impossible de générer le Plus Code. Veuillez réessayer.");
+      }
+    });
 
     // Créer un nouveau marqueur à l'emplacement du clic
     if (this.mapProviderType === MapProviderType.LEAFLET) {
