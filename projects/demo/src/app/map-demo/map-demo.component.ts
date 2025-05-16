@@ -1,9 +1,7 @@
 import { Component, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClientModule } from '@angular/common/http';
-import { MapLibModule, MapService, MapLibOptions } from 'map-lib';
-import { IconService, PopupInfo } from 'map-lib';
-import { PopupActionsService } from 'map-lib';
+import { MapLibModule, MapService, MapLibOptions, IconService, PopupInfo, PopupActionsService } from 'map-lib';
 import * as L from 'leaflet';
 import { MapComponent, MapClickEvent, ClickedPointPopupConfig, ClickedPointEvent } from 'map-lib';
 
@@ -18,7 +16,7 @@ export class MapDemoComponent implements OnInit {
   @ViewChild('mapComponent') mapComponent!: MapComponent;
 
   mapOptions: MapLibOptions = {
-    center: [6.134106, 1.216633], // Centre de la carte
+    center: [6.134106, 1.216633],
     zoom: 10
   };
 
@@ -180,14 +178,6 @@ export class MapDemoComponent implements OnInit {
     });
   }
 
-  /**
-   * Affiche tous les lieux favoris sur la carte
-   */
-  showAllFavorites(): void {
-    if (this.mapComponent) {
-      this.mapComponent.showAllFavorites();
-    }
-  }
 
   /**
    * Ajoute un marqueur personnalisé à la position actuelle
@@ -257,9 +247,7 @@ export class MapDemoComponent implements OnInit {
     const { buttonIndex, latitude, longitude } = event;
 
     if (buttonIndex === 1) {
-      // Partager la position
     } else if (buttonIndex === 2) {
-      // Obtenir un itinéraire
     } else if (buttonIndex === 3) {
       console.log('Plus')
     }
@@ -270,9 +258,6 @@ export class MapDemoComponent implements OnInit {
 
     console.log(`Position cliquée: ${latitude}, ${longitude}`);
     console.log(`Plus Code: ${plusCode}`);
-
-    // Vous pouvez maintenant utiliser ces informations comme vous le souhaitez
-    // Par exemple, les stocker dans votre application ou les envoyer à un serveur
   }
 
 }
