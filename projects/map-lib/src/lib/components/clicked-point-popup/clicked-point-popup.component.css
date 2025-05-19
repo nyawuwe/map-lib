@@ -26,8 +26,20 @@
 }
 
 .action-button.plus {
-  background-color: #FE6B04;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #FE6B04 !important;
+  border-radius: 5px;
+  min-width: 100px;
   border: 1px #FE6B04 solid;
+  background-color: #f5f5f5;
+  transition: background-color 0.3s ease;
+}
+
+.action-button.plus:hover, .action-button.plus:active {
+  background-color: #FE6B04;
+  color: #f5f5f5 !important;
 }
 
 .action-button.plus i {

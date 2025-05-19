@@ -237,4 +237,87 @@ export class MapService {
 
     // Conserver les couches pour pouvoir les réutiliser lors de la réinitialisation
   }
+
+  /**
+   * Déplace la vue de la carte vers une position spécifique avec animation
+   * @param position Position [lat, lng] vers laquelle naviguer
+   * @param zoom Niveau de zoom à appliquer
+   * @param options Options supplémentaires pour l'animation
+   */
+  flyTo(position: L.LatLngExpression, zoom?: number, options?: L.ZoomPanOptions): void {
+    if (!this.provider) {
+      console.error('Map not initialized');
+      return;
+    }
+
+    const map = this.provider.getUnderlyingMap();
+    if (this.providerType === MapProviderType.LEAFLET) {
+      const leafletMap = map as L.Map;
+      leafletMap.flyTo(position, zoom, options);
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      // Adapter pour Mapbox si nécessaire
+      if (Array.isArray(position)) {
+        // Convertir de [lat, lng] à [lng, lat] pour Mapbox
+        map.flyTo({
+          center: [position[1], position[0]],
+          zoom: zoom || map.getZoom(),
+          ...options
+        });
+      }
+    }
+  }
+
+  /**
+   * Ouvre un popup à une position spécifique sur la carte
+   * @param position Position [lat, lng] où ouvrir le popup
+   */
+  openPopupAtPosition(position: L.LatLngExpression): void {
+    if (!this.provider) {
+      console.error('Map not initialized');
+      return;
+    }
+
+    const map = this.provider.getUnderlyingMap();
+    if (this.providerType === MapProviderType.LEAFLET) {
+      const leafletMap = map as L.Map;
+
+      // Rechercher un marqueur à cette position
+      let foundMarker = false;
+      this.layers.forEach(layer => {
+        if (layer.layer instanceof L.LayerGroup) {
+          layer.layer.eachLayer(sublayer => {
+            if (sublayer instanceof L.Marker) {
+              const markerPos = sublayer.getLatLng();
+              const targetPos = L.latLng(position);
+
+              // Vérifier si les positions sont proches (tolérance de 10 mètres)
+              if (markerPos.distanceTo(targetPos) < 10) {
+                sublayer.openPopup();
+                foundMarker = true;
+              }
+            }
+          });
+        } else if (layer.layer instanceof L.Marker) {
+          const markerPos = layer.layer.getLatLng();
+          const targetPos = L.latLng(position);
+
+          if (markerPos.distanceTo(targetPos) < 10) {
+            layer.layer.openPopup();
+            foundMarker = true;
+          }
+        }
+      });
+
+      // Si aucun marqueur n'est trouvé, on peut créer un popup temporaire
+      if (!foundMarker) {
+        L.popup()
+          .setLatLng(position)
+          .setContent('Position sélectionnée')
+          .openOn(leafletMap);
+      }
+    } else if (this.providerType === MapProviderType.MAPBOX) {
+      // Implémentation pour Mapbox si nécessaire
+      console.log('Ouverture de popup non implémentée pour Mapbox');
+    }
+  }
 }

@@ -86,7 +86,7 @@ body {
 }
 
 .leaflet-container a.leaflet-popup-close-button {
-  background: orange !important;
+  background: #FE6B04 !important;
   border-radius: 50% !important;
   position: absolute;
   top: 0 !important;

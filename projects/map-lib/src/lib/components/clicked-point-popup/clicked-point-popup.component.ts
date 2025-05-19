@@ -25,12 +25,13 @@ export class ClickedPointPopupComponent implements OnInit {
   // Configuration des boutons
   @Input() button1Config: ClickedPointButtonConfig = { visible: true, icon: 'ph-share-network', tooltip: 'Partager' };
   @Input() button2Config: ClickedPointButtonConfig = { visible: true, icon: 'ph-bookmark-simple', tooltip: 'Favoris' };
-  @Input() button3Config: ClickedPointButtonConfig = { visible: true, icon: 'ph-plus', tooltip: 'Nouvelle adresse' };
-
+  @Input() button3Config: ClickedPointButtonConfig = { visible: true, icon: 'ph-path', tooltip: 'Itinéraire' };
+  @Input() button4Config: ClickedPointButtonConfig = { visible: true, icon: 'ph-plus', tooltip: 'Créer adresse' };
   // Événements de clic sur les boutons
   @Output() button1Click = new EventEmitter<{ lat: number, lng: number }>();
   @Output() button2Click = new EventEmitter<{ lat: number, lng: number }>();
   @Output() button3Click = new EventEmitter<{ lat: number, lng: number }>();
+  @Output() button4Click = new EventEmitter<{ lat: number, lng: number }>();
 
   plusCode: string = '';
   loading: boolean = true;
@@ -81,5 +82,9 @@ export class ClickedPointPopupComponent implements OnInit {
 
   onButton3Click(): void {
     this.button3Click.emit({ lat: this.latitude, lng: this.longitude });
+  }
+
+  onButton4Click(): void {
+    this.button4Click.emit({ lat: this.latitude, lng: this.longitude });
   }
 }

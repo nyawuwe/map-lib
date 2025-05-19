@@ -238,8 +238,8 @@ export class MapDemoComponent implements OnInit {
     },
     button3: {
       visible: true,
-      icon: 'ph-plus',
-      tooltip: 'Ajouter aux favoris'
+      icon: 'ph-path',
+      tooltip: 'Itinéraire'
     }
   };
 

@@ -20,9 +20,11 @@
           </button>
 
           <button *ngIf="button3Config.visible" [title]="button3Config.tooltip"
-            [disabled]="button3Config.enabled === false" class="action-button plus" (click)="onButton3Click()">
+            [disabled]="button3Config.enabled === false" class="action-button" (click)="onButton3Click()">
             <i class="ph" [ngClass]="button3Config.icon"></i>
           </button>
+
+
         </div>
       </div>
     </div>
@@ -41,6 +43,13 @@
         <span>{{ latitude | number:'1.6-6' }}, {{ longitude | number:'1.6-6' }}</span>
         <button class="copy-button" (click)="copyToClipboard(latitude + ', ' + longitude)">copier</button>
       </div>
+    </div>
+
+    <div class="row-container" style="display: flex; justify-content: flex-end;">
+      <button *ngIf="button4Config.visible" [title]="button4Config.tooltip"
+        [disabled]="button4Config.enabled === false" class="action-button plus primary" (click)="onButton4Click()">
+        Créer adresse
+      </button>
     </div>
   </div>
 </div>
