@@ -241,6 +241,8 @@ export class MapDemoComponent implements OnInit {
       icon: 'ph-path',
       tooltip: 'Itinéraire'
     }
+
+
   };
 
   onButtonClick(event: ClickedPointEvent): void {
@@ -250,6 +252,9 @@ export class MapDemoComponent implements OnInit {
     } else if (buttonIndex === 2) {
     } else if (buttonIndex === 3) {
       console.log('Plus')
+    }
+    else if (buttonIndex === 4) {
+      console.log('Créer adresse')
     }
   }
 

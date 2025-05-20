@@ -92,7 +92,8 @@ export class PopupService {
         buttonConfig?: {
             button1?: ClickedPointButtonConfig,
             button2?: ClickedPointButtonConfig,
-            button3?: ClickedPointButtonConfig
+            button3?: ClickedPointButtonConfig,
+            button4?: ClickedPointButtonConfig
         }): L.Popup {
         // Configuration par défaut du popup Leaflet pour les points cliqués
         const defaultOptions: L.PopupOptions = {
@@ -139,6 +140,9 @@ export class PopupService {
             if (buttonConfig.button3) {
                 componentRef.instance.button3Config = { ...componentRef.instance.button3Config, ...buttonConfig.button3 };
             }
+            if (buttonConfig.button4) {
+                componentRef.instance.button4Config = { ...componentRef.instance.button4Config, ...buttonConfig.button4 };
+            }
         }
 
         // Écouter les événements de bouton
@@ -150,6 +154,9 @@ export class PopupService {
         });
         componentRef.instance.button3Click.subscribe(data => {
             this.clickedPointEvents.next({ buttonIndex: 3, latitude: data.lat, longitude: data.lng });
+        });
+        componentRef.instance.button4Click.subscribe(data => {
+            this.clickedPointEvents.next({ buttonIndex: 4, latitude: data.lat, longitude: data.lng });
         });
 
         // Attacher le composant à l'application
@@ -195,7 +202,8 @@ export class PopupService {
     bindClickedPointPopupToMarker(marker: L.Marker, options?: L.PopupOptions, buttonConfig?: {
         button1?: ClickedPointButtonConfig,
         button2?: ClickedPointButtonConfig,
-        button3?: ClickedPointButtonConfig
+        button3?: ClickedPointButtonConfig,
+        button4?: ClickedPointButtonConfig
     }): L.Marker {
         const latLng = marker.getLatLng();
         const popup = this.createClickedPointPopup(latLng.lat, latLng.lng, options, buttonConfig);
