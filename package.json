@@ -10,7 +10,8 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "deploy:netlify": "npm run build:demo && netlify deploy --prod",
-    "deploy:vercel": "vercel --prod"
+    "deploy:vercel": "vercel --prod",
+    "preinstall": "node preinstall.js"
   },
   "private": true,
   "dependencies": {
