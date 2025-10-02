@@ -1,7 +1,7 @@
 # Netlify configuration for Angular application
 [build]
   # Build command
-  command = "npm run build:demo"
+  command = "npm run build:lib && npm run build:demo"
 
   # Output directory
   publish = "dist/demo/browser"

@@ -31,7 +31,7 @@
     "leaflet": "^1.9.4",
     "mapbox-gl": "^3.11.1",
     "ngx-infinite-scroll": "^18.0.0",
-    "ngx-skeleton-loader": "^11.0.0",
+    "ngx-skeleton-loader": "^9.0.0",
     "open-location-code": "^1.0.3",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
