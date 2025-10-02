@@ -4,8 +4,7 @@ import { PopupInfo } from '../../models/popup-info.model';
 import { AssetService } from '../../services/asset.service';
 import { PopupActionsService, FavoritePlace } from '../../services/popup-actions.service';
 import * as olc from 'open-location-code';
-import '@phosphor-icons/web/regular';
-import '@phosphor-icons/web/fill';
+// Phosphor icons are loaded via CDN in index.html
 
 interface DetailItem {
   label: string;

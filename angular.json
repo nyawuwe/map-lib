@@ -58,6 +58,11 @@
               {
                 "glob": "**/*",
                 "input": "projects/demo/public"
+              },
+              {
+                "glob": "**/*.{woff,woff2,ttf,svg}",
+                "input": "node_modules/@phosphor-icons/web/src",
+                "output": "/assets/phosphor-icons"
               }
             ],
             "styles": [
