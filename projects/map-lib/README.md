@@ -526,8 +526,8 @@ Ce projet est sous licence MIT.
 Pour obtenir de l'aide :
 
 1. Consultez la documentation complète dans le README principal
-2. Recherchez dans les [issues existantes](https://github.com/votre-username/placidusax/issues)
-3. Ouvrez une [nouvelle issue](https://github.com/votre-username/placidusax/issues/new) si nécessaire
+2. Recherchez dans les [issues existantes](https://github.com/nyawuwe/map-lib/issues)
+3. Ouvrez une [nouvelle issue](https://github.com/nyawuwe/map-lib/issues/new) si nécessaire
 
 ---
 

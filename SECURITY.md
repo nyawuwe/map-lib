@@ -2,7 +2,7 @@
 
 ## 🔒 Versions supportées
 
-Nous publions des correctifs de sécurité pour les versions suivantes de Placidusax :
+Nous publions des correctifs de sécurité pour les versions suivantes de MapxAngular :
 
 | Version | Supportée          |
 | ------- | ------------------ |
@@ -12,7 +12,7 @@ Nous publions des correctifs de sécurité pour les versions suivantes de Placid
 
 ## 🐛 Signaler une vulnérabilité
 
-La sécurité de Placidusax est prise très au sérieux. Si vous découvrez une vulnérabilité de sécurité, merci de nous aider à la résoudre de manière responsable.
+La sécurité de MapxAngular est prise très au sérieux. Si vous découvrez une vulnérabilité de sécurité, merci de nous aider à la résoudre de manière responsable.
 
 ### ⚠️ NE PAS créer d'issue publique
 
@@ -22,7 +22,7 @@ La sécurité de Placidusax est prise très au sérieux. Si vous découvrez une 
 
 1. **Email** : Envoyez un email détaillé à `security@votre-domaine.com` (à configurer)
 
-2. **GitHub Security Advisories** : Utilisez la fonctionnalité [Security Advisories](https://github.com/votre-username/placidusax/security/advisories) de GitHub
+2. **GitHub Security Advisories** : Utilisez la fonctionnalité [Security Advisories](https://github.com/nyawuwe/map-lib/security/advisories) de GitHub
 
 3. **Informations à inclure** :
    - Type de vulnérabilité
@@ -194,13 +194,13 @@ Dernière mise à jour : Octobre 2024
 ## ❓ Questions
 
 Pour toute question concernant cette politique de sécurité qui n'implique pas de vulnérabilité :
-- Ouvrez une [issue](https://github.com/votre-username/placidusax/issues) avec le label `security`
+- Ouvrez une [issue](https://github.com/nyawuwe/map-lib/issues) avec le label `security`
 - Consultez notre [documentation](README.md)
 
 ---
 
 <div align="center">
 
-**La sécurité est l'affaire de tous. Merci de nous aider à garder Placidusax sûr ! 🛡️**
+**La sécurité est l'affaire de tous. Merci de nous aider à garder MapxAngular sûr ! 🛡️**
 
 </div>

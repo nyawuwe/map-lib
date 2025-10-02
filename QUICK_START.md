@@ -1,6 +1,6 @@
 # Guide de Démarrage Rapide 🚀
 
-Ce guide vous aidera à démarrer rapidement avec **Placidusax** et **map-lib**.
+Ce guide vous aidera à démarrer rapidement avec **MapxAngular** et **map-lib**.
 
 ## 📦 Installation en 3 minutes
 
@@ -14,8 +14,8 @@ Ce guide vous aidera à démarrer rapidement avec **Placidusax** et **map-lib**.
 
 ```bash
 # Cloner le repository
-git clone https://github.com/votre-username/placidusax.git
-cd placidusax
+git clone https://github.com/nyawuwe/map-lib.git
+cd MapxAngular
 
 # Installer les dépendances
 npm install
@@ -353,8 +353,8 @@ Maintenant que vous avez une carte fonctionnelle, explorez :
 
 ## ❓ Besoin d'aide ?
 
-- 📝 [Issues GitHub](https://github.com/votre-username/placidusax/issues)
-- 💬 [Discussions](https://github.com/votre-username/placidusax/discussions)
+- 📝 [Issues GitHub](https://github.com/nyawuwe/map-lib/issues)
+- 💬 [Discussions](https://github.com/nyawuwe/map-lib/discussions)
 - 📚 [Documentation](README.md)
 
 ## 🎯 Cas d'usage courants
@@ -403,7 +403,7 @@ this.mapService.getUserLocation().subscribe(
 
 <div align="center">
 
-**Vous êtes prêt ! Bon développement avec Placidusax ! 🚀**
+**Vous êtes prêt ! Bon développement avec MapxAngular ! 🚀**
 
 [⬆ Retour en haut](#guide-de-démarrage-rapide-)
 

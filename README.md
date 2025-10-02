@@ -1,4 +1,4 @@
-# Placidusax 🗺️
+# MapxAngular 🗺️
 
 <div align="center">
 
@@ -26,14 +26,15 @@
 - [Documentation](#-documentation)
 - [Architecture](#-architecture)
 - [Technologies](#-technologies)
+- [Déploiement](#-déploiement)
 - [Contribution](#-contribution)
 - [Licence](#-licence)
 
 ## 📖 À propos
 
-**Placidusax** est un projet Angular qui fournit une bibliothèque cartographique puissante et flexible (`map-lib`) permettant de créer facilement des applications de cartographie interactive. La bibliothèque supporte à la fois **Leaflet** et **Mapbox** comme fournisseurs de cartes, offrant ainsi une grande flexibilité pour vos projets.
+**MapxAngular** est un projet Angular qui fournit une bibliothèque cartographique puissante et flexible (`map-lib`) permettant de créer facilement des applications de cartographie interactive. La bibliothèque supporte à la fois **Leaflet** et **Mapbox** comme fournisseurs de cartes, offrant ainsi une grande flexibilité pour vos projets.
 
-> **Note:** Le nom "Placidusax" fait référence à Placidusax, le dragon ancien d'Elden Ring, symbolisant la puissance et la flexibilité de cette bibliothèque cartographique.
+> **Note:** Le nom "MapxAngular" fait référence à MapxAngular, le dragon ancien d'Elden Ring, symbolisant la puissance et la flexibilité de cette bibliothèque cartographique.
 
 ## ✨ Fonctionnalités
 
@@ -58,8 +59,17 @@ L'application `demo` incluse dans le projet illustre toutes les fonctionnalités
 
 > **[Voir la démo en ligne](#)** _(URL à ajouter après déploiement)_
 
+[![Netlify Status](https://api.netlify.com/api/v1/badges/YOUR-SITE-ID/deploy-status)](https://app.netlify.com/sites/YOUR-SITE-NAME/deploys)
+
 ![Screenshot de l'application](.github/images/demo-screenshot.png)
 _Capture d'écran de l'application de démonstration_
+
+### 🎯 Déployer votre propre instance
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/nyawuwe/map-lib)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/nyawuwe/map-lib)
+
+Consultez le [Guide de déploiement](DEPLOYMENT.md) pour plus de détails.
 
 ## 📦 Installation
 
@@ -72,8 +82,8 @@ _Capture d'écran de l'application de démonstration_
 ### Cloner le repository
 
 ```bash
-git clone https://github.com/votre-username/placidusax.git
-cd placidusax
+git clone https://github.com/nyawuwe/map-lib.git
+cd MapxAngular
 ```
 
 ### Installer les dépendances
@@ -188,7 +198,7 @@ Pour une documentation complète de la bibliothèque, consultez :
 ## 🏗️ Architecture
 
 ```
-placidusax/
+MapxAngular/
 ├── projects/
 │   ├── map-lib/                 # Bibliothèque cartographique
 │   │   ├── src/
@@ -230,6 +240,31 @@ placidusax/
 
 - **[Google Places API](https://developers.google.com/maps/documentation/places/web-service)** - Recherche de lieux
 - **[Open Location Code (Plus Codes)](https://plus.codes/)** - Codes de localisation
+
+## 🚀 Déploiement
+
+L'application de démonstration peut être facilement déployée sur Netlify ou Vercel.
+
+### Déploiement rapide
+
+**Sur Netlify :**
+```bash
+npm run deploy:netlify
+```
+
+**Sur Vercel :**
+```bash
+npm run deploy:vercel
+```
+
+### Guide complet
+
+📖 Consultez le [**Guide de déploiement complet**](DEPLOYMENT.md) pour :
+- Instructions détaillées pour Netlify et Vercel
+- Configuration des variables d'environnement
+- Déploiement continu (CI/CD)
+- Dépannage et optimisation
+- Configuration de domaines personnalisés
 
 ## 🤝 Contribution
 
@@ -280,8 +315,8 @@ Ce projet est sous licence MIT - voir le fichier [LICENSE](LICENSE) pour plus de
 
 <div align="center">
 
-**Développé avec ❤️ par [Votre Nom]**
+**Développé avec ❤️ par oldremon**
 
-[⬆ Retour en haut](#placidusax-)
+[⬆ Retour en haut](#MapxAngular-)
 
 </div>

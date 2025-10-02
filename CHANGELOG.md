@@ -16,7 +16,7 @@ et ce projet adhère au [Semantic Versioning](https://semver.org/lang/fr/).
 
 ### 🎉 Version initiale
 
-Cette version initiale de **Placidusax** inclut la bibliothèque **map-lib** avec les fonctionnalités suivantes :
+Cette version initiale de **MapxAngular** inclut la bibliothèque **map-lib** avec les fonctionnalités suivantes :
 
 ### ✨ Ajouté
 
@@ -123,5 +123,5 @@ Le versioning suit le format `MAJOR.MINOR.PATCH` :
 
 ---
 
-[Non publié]: https://github.com/votre-username/placidusax/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/votre-username/placidusax/releases/tag/v0.0.1
+[Non publié]: https://github.com/nyawuwe/map-lib/compare/v0.0.1...HEAD
+[0.0.1]: https://github.com/nyawuwe/map-lib/releases/tag/v0.0.1

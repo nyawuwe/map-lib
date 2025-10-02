@@ -1,6 +1,6 @@
 # Guide de Contribution 🤝
 
-Merci de votre intérêt pour contribuer à **Placidusax** ! Ce document fournit des lignes directrices pour contribuer au projet.
+Merci de votre intérêt pour contribuer à **MapxAngular** ! Ce document fournit des lignes directrices pour contribuer au projet.
 
 ## 📋 Table des matières
 
@@ -28,7 +28,7 @@ Il existe plusieurs façons de contribuer au projet :
 
 ### 1. Signaler des bugs 🐛
 
-Si vous trouvez un bug, veuillez [ouvrir une issue](https://github.com/votre-username/placidusax/issues/new) en incluant :
+Si vous trouvez un bug, veuillez [ouvrir une issue](https://github.com/nyawuwe/map-lib/issues/new) en incluant :
 
 - Une description claire du problème
 - Les étapes pour reproduire le bug
@@ -67,8 +67,8 @@ Pour proposer une nouvelle fonctionnalité :
 1. **Forker et cloner le repository**
 
 ```bash
-git clone https://github.com/votre-username/placidusax.git
-cd placidusax
+git clone https://github.com/nyawuwe/map-lib.git
+cd MapxAngular
 ```
 
 2. **Installer les dépendances**
@@ -100,7 +100,7 @@ L'application sera accessible sur `http://localhost:4200/`
 ### Structure du projet
 
 ```
-placidusax/
+MapxAngular/
 ├── projects/
 │   ├── map-lib/          # Bibliothèque principale
 │   │   ├── src/
@@ -468,8 +468,8 @@ Tous les contributeurs seront ajoutés au fichier CONTRIBUTORS.md et mentionnés
 Si vous avez des questions :
 
 1. Consultez la [documentation](README.md)
-2. Cherchez dans les [issues existantes](https://github.com/votre-username/placidusax/issues)
-3. Ouvrez une [nouvelle issue](https://github.com/votre-username/placidusax/issues/new) avec le label "question"
+2. Cherchez dans les [issues existantes](https://github.com/nyawuwe/map-lib/issues)
+3. Ouvrez une [nouvelle issue](https://github.com/nyawuwe/map-lib/issues/new) avec le label "question"
 
 ---
 
@@ -477,7 +477,7 @@ Si vous avez des questions :
 
 Pour toute question ou suggestion concernant ce guide de contribution, n'hésitez pas à ouvrir une issue.
 
-**Merci de contribuer à Placidusax ! 🎉**
+**Merci de contribuer à MapxAngular ! 🎉**
 
 ---
 
