@@ -2,16 +2,11 @@
   <h2>Carte avec la couche des marqueurs</h2>
 
   <div class="controls-panel">
-    <button class="control-btn">
-      <i class="fas fa-star"></i> Afficher les favoris
-    </button>
-    <button class="control-btn" (click)="addCurrentPositionMarker()">
-      <i class="fas fa-map-marker-alt"></i> Ma position
-    </button>
+    
   </div>
 
   <div class="map-container">
     <lib-map [options]="mapOptions" #mapComponent [clickedPointPopupConfig]="clickedPointConfig"
-      (clickedPointButtonClick)="onButtonClick($event)" (mapClick)="onMapClick($event)">></lib-map>
+      (clickedPointButtonClick)="onButtonClick($event)" (mapClick)="onMapClick($event)"></lib-map>
   </div>
 </div>

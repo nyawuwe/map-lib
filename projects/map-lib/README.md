@@ -1,11 +1,60 @@
-# MapLib
+# MapLib 🗺️
 
-Une bibliothèque Angular pour afficher et gérer des cartes interactives avec Leaflet ou Mapbox en utilisant une approche par couches.
+<div align="center">
 
-## Installation
+![Angular](https://img.shields.io/badge/Angular-18+-DD0031?style=flat&logo=angular)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.5+-3178C6?style=flat&logo=typescript)
+![Leaflet](https://img.shields.io/badge/Leaflet-1.9+-199900?style=flat&logo=leaflet)
+![Mapbox](https://img.shields.io/badge/Mapbox-3.2+-000000?style=flat&logo=mapbox)
+
+**Bibliothèque Angular moderne pour créer des applications cartographiques interactives**
+
+</div>
+
+---
+
+## 📋 Table des matières
+
+- [À propos](#-à-propos)
+- [Fonctionnalités](#-fonctionnalités)
+- [Installation](#-installation)
+- [Configuration](#-configuration)
+- [Utilisation](#-utilisation)
+- [API](#-api)
+- [Exemples avancés](#-exemples-avancés)
+- [Support des fournisseurs](#-support-des-fournisseurs)
+- [Notes de compatibilité](#-notes-de-compatibilité)
+
+## 📖 À propos
+
+**MapLib** est une bibliothèque Angular puissante et flexible qui permet d'intégrer facilement des cartes interactives dans vos applications. Elle supporte à la fois **Leaflet** et **Mapbox GL JS**, offrant ainsi une grande flexibilité pour vos besoins cartographiques.
+
+## ✨ Fonctionnalités
+
+- ✅ **Multi-fournisseurs** : Support de Leaflet et Mapbox GL JS
+- ✅ **Système de couches** : Gestion avancée des couches avec contrôle d'affichage
+- ✅ **Recherche de lieux** : Recherche d'adresses et de points d'intérêt intégrée
+- ✅ **Plus Codes (OLC)** : Support complet des codes Open Location Code
+- ✅ **Marqueurs personnalisés** : Création facile de marqueurs avec icônes Font Awesome
+- ✅ **Popups riches** : Popups personnalisables avec boutons d'action
+- ✅ **Notifications Toast** : Système de notifications élégant et non-intrusif
+- ✅ **Géolocalisation** : Support de la géolocalisation utilisateur
+- ✅ **Contrôles de carte** : Zoom, rotation, et autres contrôles personnalisables
+- ✅ **Totalement réactif** : Interface adaptée à tous les écrans
+- ✅ **TypeScript** : Typage fort pour une meilleure expérience développeur
+
+## 📦 Installation
+
+### 1. Installer la bibliothèque
 
 ```bash
-npm build map-lib
+npm install map-lib
+```
+
+### 2. Installer les dépendances peer
+
+```bash
+npm install @angular/animations @angular/common @angular/core @phosphor-icons/web leaflet mapbox-gl
 ```
 
 ## Configuration
@@ -354,8 +403,138 @@ export class MapDemoComponent implements OnInit {
 }
 ```
 
-## Notes de compatibilité
+## 🔧 Support des fournisseurs
 
-- Compatible avec Angular 13+
-- Support de Leaflet 1.7+ et Mapbox GL JS 2.0+
-- Nécessite Font Awesome 5+ pour les icônes personnalisées
+### Leaflet (par défaut)
+
+Leaflet est le fournisseur de cartes par défaut. Il est léger, performant et ne nécessite pas de clé API pour les tuiles de base.
+
+**Avantages :**
+- ✅ Pas de clé API requise pour OpenStreetMap
+- ✅ Léger et rapide
+- ✅ Large écosystème de plugins
+- ✅ Support excellent de tous les navigateurs
+
+### Mapbox GL JS
+
+Mapbox offre des cartes vectorielles modernes avec des styles personnalisables.
+
+**Avantages :**
+- ✅ Cartes vectorielles haute performance
+- ✅ Styles personnalisables
+- ✅ Rendu 3D et effets visuels avancés
+- ✅ Mises à jour en temps réel
+
+**Note :** Une clé API Mapbox est requise. Obtenez-la gratuitement sur [mapbox.com](https://www.mapbox.com/).
+
+## 🔐 Configuration des clés API
+
+### Google Places API (optionnel)
+
+Pour utiliser la recherche de lieux avec Google Places :
+
+```typescript
+import { GOOGLE_PLACES_API_KEY } from 'map-lib';
+
+@NgModule({
+  providers: [
+    { provide: GOOGLE_PLACES_API_KEY, useValue: 'VOTRE_CLE_API_GOOGLE' }
+  ]
+})
+```
+
+### Mapbox Access Token (optionnel)
+
+Pour utiliser Mapbox comme fournisseur de cartes :
+
+```typescript
+import { MAPBOX_ACCESS_TOKEN } from 'map-lib';
+
+@NgModule({
+  providers: [
+    { provide: MAPBOX_ACCESS_TOKEN, useValue: 'VOTRE_TOKEN_MAPBOX' }
+  ]
+})
+```
+
+### Plus Code API (optionnel)
+
+Pour utiliser un serveur custom pour les Plus Codes :
+
+```typescript
+import { PLUS_CODE_API_URL } from 'map-lib';
+
+@NgModule({
+  providers: [
+    { provide: PLUS_CODE_API_URL, useValue: 'https://your-api.com/pluscode' }
+  ]
+})
+```
+
+## 🧪 Tests
+
+```bash
+# Exécuter les tests unitaires
+ng test map-lib
+
+# Exécuter les tests avec couverture
+ng test map-lib --code-coverage
+```
+
+## 📦 Build
+
+```bash
+# Build de production
+ng build map-lib
+
+# Build en mode watch (développement)
+ng build map-lib --watch
+```
+
+## 🐛 Débogage
+
+Pour activer les logs de débogage :
+
+```typescript
+import { MapConfigService } from 'map-lib';
+
+// Dans votre composant
+constructor(private mapConfig: MapConfigService) {
+  this.mapConfig.enableDebugMode(true);
+}
+```
+
+## 🤝 Contribution
+
+Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou une pull request.
+
+## 📄 Licence
+
+Ce projet est sous licence MIT.
+
+## 📝 Notes de compatibilité
+
+- **Angular** : 18.0+
+- **TypeScript** : 5.5+
+- **Leaflet** : 1.9+
+- **Mapbox GL JS** : 3.2+
+- **Font Awesome** : 6.0+ (pour les icônes personnalisées)
+- **Node.js** : 18.0+
+
+## 🆘 Support
+
+Pour obtenir de l'aide :
+
+1. Consultez la documentation complète dans le README principal
+2. Recherchez dans les [issues existantes](https://github.com/votre-username/placidusax/issues)
+3. Ouvrez une [nouvelle issue](https://github.com/votre-username/placidusax/issues/new) si nécessaire
+
+---
+
+<div align="center">
+
+**MapLib** - Développé avec ❤️ pour la communauté Angular
+
+[⬆ Retour en haut](#maplib-)
+
+</div>

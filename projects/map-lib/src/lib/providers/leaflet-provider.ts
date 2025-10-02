@@ -26,13 +26,48 @@ export class LeafletProvider implements MapProvider {
             ...mergedOptions.options
         });
 
-        // Ajout d'une couche de base (OpenStreetMap)
-        const baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Ajout des différentes couches de base
+        const openStreetMapLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         });
+        
+        const googleStreetLayer = L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+            attribution: '&copy; Google Maps',
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        });
+        
+        const googleSatelliteLayer = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            attribution: '&copy; Google Maps',
+            subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+        });
+        
+        const esriWorldImageryLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
 
-        baseLayer.addTo(this.map);
-        this.layers.set('base-layer', baseLayer);
+        const baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+        });
+
+        const satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '&copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+        });
+
+        const trafficLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/attributions">CARTO</a>'
+        });
+
+        // Utilisation d'OpenStreetMap comme couche par défaut
+        openStreetMapLayer.addTo(this.map);
+        
+        // Stockage de toutes les couches
+        this.layers.set('osm-layer', openStreetMapLayer);
+        this.layers.set('google-streets-layer', googleStreetLayer);
+        this.layers.set('google-satellite-layer', googleSatelliteLayer);
+        this.layers.set('esri-imagery-layer', esriWorldImageryLayer);
+        this.layers.set('baseLayer', baseLayer);
+        this.layers.set('satellite-layer', satelliteLayer);
+        this.layers.set('traffic-layer', trafficLayer);
 
         return this.map;
     }

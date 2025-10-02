@@ -75,25 +75,6 @@ export class MapDemoComponent implements OnInit {
       }
     );
 
-    // 3. Marqueur avec icône de bâtiment
-    const buildingMarker = this.iconService.createMarkerWithIcon(
-      [6.124106, 1.226633],
-      {
-        imageUrl: './assets/000ef536ad908ee07094dbca01432768615fd2b9.png'
-      },
-      {
-        title: 'Bâtiment',
-        imageSrc: 'https://th.bing.com/th/id/R.164954a26f537498266eb0cbc8f58f0c?rik=rE8tTf9%2bHMHfOQ&pid=ImgRaw&r=0',
-        description: 'Marqueur représentant un bâtiment',
-        certified: true,
-        postalCode: 'LG67',
-        plusCode: '6FR923KF+PV',
-        details: {
-          'Altitude': '25m',
-          'Catégorie': 'Bâtiment public'
-        }
-      }
-    );
 
     // 4. Marqueur avec icône de restaurant
     const restaurantMarker = this.iconService.createMarkerWithIcon(
@@ -162,7 +143,6 @@ export class MapDemoComponent implements OnInit {
     const markersLayer = L.layerGroup([
       standardMarker,
       fillMarker,
-      buildingMarker,
       restaurantMarker,
       poiMarker,
       transportMarker

@@ -1,6 +1,0 @@
----
-description:
-globs:
-alwaysApply: false
----
-Salut cher. Je dois travailler sur les popop de ma library de map. Et je veux que tu m'y aide. Je t'ai envoyer le voulu en image. Pour les bouton ajouter favoris, itineraire et status (certifié) sur l'image, nous allons ecrire des services, qui doivent permettre a l'utilisateur d'ecouter quand ils sont sélectionner pour certains ou de changer la couleur et le libelé d'autre.

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import * as olc from 'open-location-code';
+import { Toast, ToastService } from './toast.service';
 
 export interface PlusCodeRequest {
   latitude: number;
@@ -15,7 +16,8 @@ export interface PlusCodeResponse {
 }
 
 export const PLUS_CODE_API_URL = new InjectionToken<string>('PLUS_CODE_API_URL');
-const DEFAULT_PLUS_CODE_URL = 'http://localhost:9001/api/v1/public/address-manager/plus-code/encode';
+const DEFAULT_PLUS_CODE_URL = '';
+const GOOGLE_PLUS_CODE_URL = 'https://plus.codes/api';
 
 @Injectable({
   providedIn: 'root'
@@ -25,9 +27,17 @@ export class PlusCodeService {
 
   constructor(
     private http: HttpClient,
+    private toastService: ToastService,
     @Optional() @Inject(PLUS_CODE_API_URL) private configuredApiUrl: string
   ) {
     this.apiUrl = this.configuredApiUrl || DEFAULT_PLUS_CODE_URL;
+    
+    if (!this.apiUrl) {
+      this.toastService.showToast('Aucune URL d\'API Plus Code configurée. Veuillez configurer PLUS_CODE_API_URL dans vos paramètres.',);
+      
+      // Utiliser l'URL Google publique comme fallback
+      this.apiUrl = GOOGLE_PLUS_CODE_URL;
+    }
   }
 
   /**
